@@ -1,5 +1,6 @@
 <?php
 /**
+ * Возвращает генератор внешнего ключа
  * User: Nikolay Mesherinov
  * Date: 09.11.2017
  * Time: 16:36
@@ -8,9 +9,16 @@
 namespace Fgsoft\Nmarket\Fabric;
 
 
+use Fgsoft\Nmarket\ExternalId\DictionaryExternalId;
+use Fgsoft\Nmarket\ExternalId\RealExternalId;
+use Fgsoft\Nmarket\ExternalId\BuildingExternalId;
+use Fgsoft\Nmarket\ExternalId\FloorExternalId;
+use Fgsoft\Nmarket\ExternalId\FlatExternalId;
+use Fgsoft\Nmarket\Node\Node;
+
 class FabricExternalId
 {
-    public static function get($node, $type)
+    public static function get(Node $node, $type)
     {
         switch ($type) {
             case 'sub-locality-name':
@@ -47,12 +55,92 @@ class FabricExternalId
     }
 
     /**
-     * Генератор ключа для района
+     * Для района
      * @param $node
      * @return BuildingExternalId|FlatExternalId|FloorExternalId
      */
-    public static function getForTownarea($node)
+    public static function getForTownarea(Node $node)
     {
-        return static::get('sub-locality-name');
+        return static::get($node, 'sub-locality-name');
+    }
+
+    /**
+     * Для Ремонта
+     * @param $node
+     * @return BuildingExternalId|FlatExternalId|FloorExternalId
+     */
+    public static function getForRenovation(Node $node)
+    {
+        return static::get($node, 'renovation');
+    }
+
+    /**
+     * Для этажей
+     * @param Node $node
+     * @return BuildingExternalId|FlatExternalId|FloorExternalId
+     */
+    public static function getForRooms(Node $node)
+    {
+        return static::get($node, 'rooms');
+    }
+
+    /**
+     * Тип дома
+     * @param Node $node
+     * @return BuildingExternalId|FlatExternalId|FloorExternalId
+     */
+    public static function getForBuildingType(Node $node)
+    {
+        return static::get($node, 'building-type');
+    }
+
+    /**
+     * Фазы строительства
+     * @param Node $node
+     * @return BuildingExternalId|FlatExternalId|FloorExternalId
+     */
+    public static function getForBuildingPhase(Node $node)
+    {
+        return static::get($node, 'building-phase');
+    }
+
+    /**
+     * Комплекс
+     * @param Node $node
+     * @return BuildingExternalId|FlatExternalId|FloorExternalId
+     */
+    public static function getForComplex(Node $node)
+    {
+        return static::get($node, 'nmarket-complex-id');
+    }
+
+    /**
+     * Строение/Корпус
+     * @param Node $node
+     * @return BuildingExternalId|FlatExternalId|FloorExternalId
+     */
+    public static function getForBuilding(Node $node)
+    {
+        return static::get($node, 'nmarket-building-id');
+    }
+
+    /**
+     * Этаж
+     * @param Node $node
+     * @return BuildingExternalId|FlatExternalId|FloorExternalId
+     */
+    public static function getForFloor(Node $node)
+    {
+        return static::get($node, 'floor');
+    }
+
+    /**
+     * Квартира
+     * @param Node $node
+     * @return BuildingExternalId|FlatExternalId|FloorExternalId
+     */
+    public static function getForFlat(Node $node)
+    {
+        return static::get($node, 'flat');
     }
 }
