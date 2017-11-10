@@ -23,5 +23,4 @@ class FloorSaver extends AbstractSaver
             $this->addProperty('BUILDING', $building['ID']);
         }
     }
-
 }
