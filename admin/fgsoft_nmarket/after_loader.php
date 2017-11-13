@@ -7,17 +7,17 @@
  */
 $start = microtime(true);
 \Bitrix\Main\Loader::includeModule('iblock');
-\Bitrix\Main\Loader::includeModule('fgsoft.esbn');
+\Bitrix\Main\Loader::includeModule('fgsoft.nmarket');
 //TODO: после тестов запилить защиту от прямого доступа через http, работа только через CRON
 
 
 //Заполнение параметрых необходимых для сортировки
 $arDistricts = \Bitrix\Iblock\ElementTable::getList(['select' => ['ID'], 'filter' => ['IBLOCK_ID' => DISTRICT_IBLOCK_ID, 'ACTIVE' => 'Y']])->fetchAll();
 foreach ($arDistricts as $index => $arItem) {
-    $strMinPrice = getMin(FLAT_IBLOCK_ID, 'METER_PRICE', ['PROPERTY_DISTRICT' => $arItem['ID']]);
-    $strMaxPrice = getMax(FLAT_IBLOCK_ID, 'METER_PRICE', ['PROPERTY_DISTRICT' => $arItem['ID']]);
-    $strMinSquare = getMin(FLAT_IBLOCK_ID, 'SQUARE', ['PROPERTY_DISTRICT' => $arItem['ID']]);
-    $strMaxSquare = getMax(FLAT_IBLOCK_ID, 'SQUARE', ['PROPERTY_DISTRICT' => $arItem['ID']]);
+    $strMinPrice = getNmarketMin(FLAT_IBLOCK_ID, 'METER_PRICE', ['PROPERTY_DISTRICT' => $arItem['ID']]);
+    $strMaxPrice = getNmarketMax(FLAT_IBLOCK_ID, 'METER_PRICE', ['PROPERTY_DISTRICT' => $arItem['ID']]);
+    $strMinSquare = getNmarketMin(FLAT_IBLOCK_ID, 'SQUARE', ['PROPERTY_DISTRICT' => $arItem['ID']]);
+    $strMaxSquare = getNmarketMax(FLAT_IBLOCK_ID, 'SQUARE', ['PROPERTY_DISTRICT' => $arItem['ID']]);
 
     $arPropertiesValue = [];
     if ($strMinPrice) {
@@ -102,8 +102,8 @@ function saveFlatDataGroupByRoomNumber()
 //4. Получаем площади мин и макс и заполняем фильтр
     foreach ($arResult as $intDistrictID => $arItem) {
         foreach ($arItem as $intFlatNumberID => $arData) {
-            $arResult[$intDistrictID][$intFlatNumberID]['UF_SQUARE_MAX'] = getMax($FLAT_IBLOCK_ID, 'SQUARE', ['PROPERTY_DISTRICT' => $intDistrictID, 'PROPERTY_ROOM_NUMBER' => $intFlatNumberID]);
-            $arResult[$intDistrictID][$intFlatNumberID]['UF_SQUARE_MIN'] = getMin($FLAT_IBLOCK_ID, 'SQUARE', ['PROPERTY_DISTRICT' => $intDistrictID, 'PROPERTY_ROOM_NUMBER' => $intFlatNumberID]);
+            $arResult[$intDistrictID][$intFlatNumberID]['UF_SQUARE_MAX'] = getNmarketMax($FLAT_IBLOCK_ID, 'SQUARE', ['PROPERTY_DISTRICT' => $intDistrictID, 'PROPERTY_ROOM_NUMBER' => $intFlatNumberID]);
+            $arResult[$intDistrictID][$intFlatNumberID]['UF_SQUARE_MIN'] = getNmarketMin($FLAT_IBLOCK_ID, 'SQUARE', ['PROPERTY_DISTRICT' => $intDistrictID, 'PROPERTY_ROOM_NUMBER' => $intFlatNumberID]);
             $arResult[$intDistrictID][$intFlatNumberID]['UF_FILTER_STRING'] = 'PROPERTY_ROOM_NUMBER=' . $arData['UF_ROOM_NUMBERS'];
         }
 
@@ -111,13 +111,13 @@ function saveFlatDataGroupByRoomNumber()
 
     foreach ($arResult as $intDistrictID => $arItem) {
         foreach ($arItem as $intRoomNumberID => $arData) {
-            if ($arFlatParam = \Fgsoft\Esbn\Model\FlatParamTable::getList(['select' => ['ID'], 'filter' => ['UF_DISTRICT_ID' => $intDistrictID, 'UF_ROOM_NUMBERS' => $intRoomNumberID]])->fetch()) {
-                \Fgsoft\Esbn\Model\FlatParamTable::update(
+            if ($arFlatParam = \Fgsoft\Nmarket\Model\FlatParamTable::getList(['select' => ['ID'], 'filter' => ['UF_DISTRICT_ID' => $intDistrictID, 'UF_ROOM_NUMBERS' => $intRoomNumberID]])->fetch()) {
+                \Fgsoft\Nmarket\Model\FlatParamTable::update(
                     $arFlatParam['ID'],
                     $arData
                 );
             } else {
-                \Fgsoft\Esbn\Model\FlatParamTable::add($arData);
+                \Fgsoft\Nmarket\Model\FlatParamTable::add($arData);
             }
         }
     }
@@ -127,12 +127,12 @@ echo microtime(true) - $start;
 
 function getMin($IBLOCK_ID, $PROPERTY_CODE, $arFilter)
 {
-    return getPropertyValue($IBLOCK_ID, $PROPERTY_CODE, 'ASC', $arFilter);
+    return getNmarketPropertyValue($IBLOCK_ID, $PROPERTY_CODE, 'ASC', $arFilter);
 }
 
 function getMax($IBLOCK_ID, $PROPERTY_CODE, $arFilter)
 {
-    return getPropertyValue($IBLOCK_ID, $PROPERTY_CODE, 'DESC', $arFilter);
+    return getNmarketPropertyValue($IBLOCK_ID, $PROPERTY_CODE, 'DESC', $arFilter);
 }
 
 function getPropertyValue($IBLOCK_ID, $PROPERTY_CODE, $strOrder, $arFilter)

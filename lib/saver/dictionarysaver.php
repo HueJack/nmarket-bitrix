@@ -24,6 +24,8 @@ class DictionarySaver extends AbstractSaver
         }
 
         $this->addField('CODE', $code);
+
+        $this->addProperty('DONT_NEED_UPDATE', 'Y');
     }
 
 }

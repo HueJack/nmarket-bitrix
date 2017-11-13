@@ -17,7 +17,72 @@ use Fgsoft\Nmarket\Saver\FloorSaver;
 
 class FacadeProcessing
 {
-    public static function process($fields)
+
+    public static function process(\XMLReader $xmlReader)
+    {
+        $fields = [];
+        $currentInternalId = 0;
+        $currentNode = '';
+        $index = 0;
+
+        while ($xmlReader->read()) {
+            if ($xmlReader->nodeType == \XMLReader::ELEMENT && $xmlReader->localName == 'offer') {
+                $currentInternalId = $xmlReader->getAttribute('internal-id');
+                continue;
+            }
+
+            if (0 == $currentInternalId) {
+                continue;
+            }
+
+            if ($xmlReader->nodeType == \XMLReader::ELEMENT) {
+                $currentNode = $xmlReader->localName;
+                $fields[$currentInternalId]['fields'][$xmlReader->localName] = [];
+
+                if (in_array($xmlReader->localName, ['price', 'area', 'living-space', 'kitchen-space'])) {
+                    $fields[$currentInternalId]['fields'][$xmlReader->localName] = self::parseSubValue($xmlReader);
+                }
+            }
+
+            if ($xmlReader->nodeType == \XMLReader::TEXT) {
+                $fields[$currentInternalId]['fields'][$currentNode] = $xmlReader->value;
+            }
+            if ($xmlReader->nodeType == \XMLReader::END_ELEMENT && $xmlReader->localName == 'offer') {
+
+                self::save($fields);
+
+
+                unset($fields);
+                $fields = [];
+
+                if ($index == 500) {
+                    break;
+                }
+
+                $index++;
+            }
+        }
+
+        $xmlReader->close();
+    }
+
+    /**
+     * Парсит следующие конструкции:
+     * <area>
+     *  <value>Значение для получения</value>
+     * </area>
+     * @param $xmlReader
+     * @return mixed
+     */
+    protected static function parseSubValue(&$xmlReader) {
+        while ($xmlReader->read()) {
+            if ($xmlReader->nodeType == \XMLReader::TEXT) {
+                return $xmlReader->value;
+            }
+        }
+    }
+
+    protected static function save($fields)
     {
         $IBLOCK_COMPLEX = 1;
         $IBLOCK_TOWNAREA = 2;

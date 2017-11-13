@@ -10,36 +10,45 @@ namespace Fgsoft\Nmarket\Saver;
 
 use Fgsoft\Nmarket\ExternalId\DictionaryExternalId;
 use Fgsoft\Nmarket\ExternalId\RealExternalId;
+use Fgsoft\Nmarket\Fabric\FabricExternalId;
 
 class BuildingSaver extends AbstractSaver
 {
     function fillFields()
     {
         $this->addField('NAME', $this->node->getBuildingSection());
-        $this->addField('CODE', \CUtil::translit($this->node->getBuildingName() . $this->node->getBuildingSection(), 'ru'));
+//        $this->addField('CODE', \CUtil::translit($this->node->getBuildingName() . $this->node->getBuildingSection(), 'ru'));
         $this->addField('XML_ID', $this->externalId->get());
         $this->addField('IBLOCK_ID', $this->iblockId);
 
         $this->addProperty('ENDING_YEAR', $this->node->getBuildYear());
         $this->addProperty('ENDING_QUARTER', $this->node->getReadyQuarter());
         $this->addProperty('FLOORS', $this->node->getFloorsTotal());
+        $this->addProperty('DONT_NEED_UPDATE', 'Y');
 
-        //Получаем комплекс
-        $district = self::getByExternalId(new RealExternalId($this->node, 'nmarket-complex-id'));
-        if (!empty($district['ID'])) {
-            $this->addProperty('DISTRICT', $district['ID']);
-        }
+        $propertiesData = static::getPropertyValuesByExternals([
+            'DISTRICT' => FabricExternalId::getForComplex($this->node),
+            'BUILDING_PHASE' => FabricExternalId::getForBuildingPhase($this->node),
+            'BUILDING_TYPE' => FabricExternalId::getForBuildingType($this->node)
+        ]);
 
-        //Получаем фазу строительства
-        $buildingPhase = self::getByExternalId(new DictionaryExternalId($this->node, 'building-phase', 'building-phase'));
-        if (!empty($buildingPhase['ID'])) {
-            $this->addProperty('BUILDING_PHASE', $buildingPhase['ID']);
+        if (false !== $propertiesData && !empty($propertiesData)) {
+            foreach ($propertiesData as $item) {
+                $this->addProperty($item['PROPERTY_CODE'], $item['ID']);
+            }
         }
+    }
 
-        //ТИп корпуса
-        $buildingType = self::getByExternalId(new DictionaryExternalId($this->node, 'building-type'));
-        if (!empty($buildingType['ID'])) {
-            $this->addProperty('BUILDING_TYPE', $buildingType['ID']);
-        }
+    protected function isNeedSave()
+    {
+        //Если не активен ЖК, то не обрабатываем корпус
+        return \Bitrix\Iblock\ElementTable::getList([
+            'select' => ['ID'],
+            'filter' => [
+                'ACTIVE' => 'Y',
+                'XML_ID' => FabricExternalId::getForComplex($this->node)
+            ],
+            'limit' => 1
+        ])->fetch();
     }
 }

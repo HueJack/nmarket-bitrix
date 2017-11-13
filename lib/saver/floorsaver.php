@@ -9,6 +9,7 @@ namespace Fgsoft\Nmarket\Saver;
 
 
 use Fgsoft\Nmarket\ExternalId\BuildingExternalId;
+use Fgsoft\Nmarket\Fabric\FabricExternalId;
 
 class FloorSaver extends AbstractSaver
 {
@@ -18,9 +19,11 @@ class FloorSaver extends AbstractSaver
         $this->addField('XML_ID', $this->externalId->get());
         $this->addField('IBLOCK_ID', $this->iblockId);
 
-        $building = self::getByExternalId(new BuildingExternalId($this->node));
+        $building = self::getByExternalId(FabricExternalId::getForBuilding($this->node));
         if (!empty($building['ID'])) {
             $this->addProperty('BUILDING', $building['ID']);
         }
+
+        $this->addProperty('DONT_NEED_UPDATE', 'Y');
     }
 }

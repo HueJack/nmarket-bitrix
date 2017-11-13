@@ -32,10 +32,17 @@ $arTabs = [
         'OPTIONS' => [
             [
                 'feedUrl',
-                Loc::getMessage('FGSOFT_NMARKET_UPLOAD_PATH'),
+                Loc::getMessage('FGSOFT_NMARKET_FEED_URL'),
                 \Bitrix\Main\Application::getDocumentRoot(),
                 ['text']
-            ]
+            ],
+             [
+                'feedUploadPath',
+                Loc::getMessage('FGSOFT_NMARKET_UPLOAD_PATH'),
+                '/nmarket/xml/',
+                ['text']
+            ],
+
         ]
     ],
     [

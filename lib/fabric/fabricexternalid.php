@@ -75,7 +75,7 @@ class FabricExternalId
     }
 
     /**
-     * Для этажей
+     * Количество комнат
      * @param Node $node
      * @return BuildingExternalId|FlatExternalId|FloorExternalId
      */

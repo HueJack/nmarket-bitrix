@@ -8,10 +8,7 @@
 namespace Fgsoft\Nmarket\Saver;
 
 
-use Fgsoft\Nmarket\ExternalId\BuildingExternalId;
-use Fgsoft\Nmarket\ExternalId\DictionaryExternalId;
-use Fgsoft\Nmarket\ExternalId\FloorExternalId;
-use Fgsoft\Nmarket\ExternalId\RealExternalId;
+use Fgsoft\Nmarket\Fabric\FabricExternalId;
 
 class FlatSaver extends AbstractSaver
 {
@@ -20,7 +17,7 @@ class FlatSaver extends AbstractSaver
         $this->addField('NAME', $this->node->getInternalID());
         $this->addField('XML_ID', $this->externalId->get());
         $this->addField('IBLOCK_ID', $this->iblockId);
-        $this->addField('DETAIL_PICTURE', $this->node->getImage());
+        $this->addField('PREVIEW_PICTURE', $this->node->getImage());
 
         $this->addProperty('SQUARE', $this->node->getArea());
         $this->addProperty('APARTMENT_PRICE', $this->node->getPrice());
@@ -31,30 +28,18 @@ class FlatSaver extends AbstractSaver
         $this->addProperty('BALCONY', $this->node->getBalcony());
         $this->addProperty('BATHROOM_UNIT', $this->node->getBathroomUnit());
 
-        $complex = self::getByExternalId(new RealExternalId($this->node, 'nmarket-complex-id'));
-        if (!empty($complex['ID'])) {
-            $this->addProperty('DISTRICT', $complex['ID']);
-        }
+        $propertiesData = static::getPropertyValuesByExternals([
+            'DISTRICT' => FabricExternalId::getForComplex($this->node),
+            'BUILDING' => FabricExternalId::getForBuilding($this->node),
+            'FLOOR' => FabricExternalId::getForFloor($this->node),
+            'FACING' => FabricExternalId::getForRenovation($this->node),
+            'ROOM_NUMBER' => FabricExternalId::getForRooms($this->node)
+        ]);
 
-        $building = self::getByExternalId(new BuildingExternalId($this->node));
-        if (!empty($building['ID'])) {
-            $this->addProperty('BUILDING', $building['ID']);
-        }
-
-        $floor = self::getByExternalId(new FloorExternalId($this->node));
-        if (!empty($floor['ID'])) {
-            $this->addProperty('FLOOR', $floor['ID']);
-        }
-
-        $renovation = self::getByExternalId(new DictionaryExternalId($this->node, 'renovation', 'renovation'));
-        if (!empty($renovation['ID'])) {
-            $this->addProperty('FACING', $renovation['ID']);
-        }
-
-        $roomNumber = self::getByExternalId(new DictionaryExternalId($this->node, 'rooms', 'rooms'));
-        if (!empty($roomNumber['ID'])) {
-            $this->addProperty('ROOM_NUMBER', $roomNumber['ID']);
+        if (false !== $propertiesData && !empty($propertiesData)) {
+            foreach ($propertiesData as $item) {
+                $this->addProperty($item['PROPERTY_CODE'], $item['ID']);
+            }
         }
     }
-
 }

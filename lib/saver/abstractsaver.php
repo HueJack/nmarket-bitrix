@@ -58,7 +58,6 @@ abstract class AbstractSaver implements Saver
         $this->iblockId = $iblockId;
 
         $this->fillFields();
-        $this->prepareFields();
     }
 
     /**
@@ -69,17 +68,22 @@ abstract class AbstractSaver implements Saver
 
     public function save()
     {
-        if ($element = $this->getElement()) {
+        if (!$this->isNeedSave()) {
+            return;
+        }
+
+        if ($element = $this->getElement() && empty($element['PROPERTY_DONT_NEED_UPDATE_VALUE'])) {
             \CIBlockElement::SetPropertyValuesEx(
                 $element['ID'],
                 $element['IBLOCK_ID'],
                 $this->fields['PROPERTY_VALUES']
             );
         } else {
+            $this->prepareFields();
             $ciblockelement = new \CIBlockElement();
             if (!$ciblockelement->Add($this->fields)) {
+                echo 'Ошибка ' . $ciblockelement->LAST_ERROR . '<br>';
                 print_r($this->fields);
-                ShowError($ciblockelement->LAST_ERROR);
             }
         }
     }
@@ -111,10 +115,19 @@ abstract class AbstractSaver implements Saver
 
     public function getElement()
     {
-        return \Bitrix\Iblock\ElementTable::getList([
-            'select' => ['ID', 'XML_ID', 'IBLOCK_ID'],
-            'filter' => ['=XML_ID' => $this->externalId->get()]
-        ])->fetch();
+        return \CIBlockElement::GetList(
+            [],
+            ['=XML_ID' => $this->externalId->get()],
+            false,
+            ['nTopCount' => 1],
+            [
+                'ID', 'IBLOCK_ID', 'XML_ID', 'PROPERTY_DONT_NEED_UPDATE'
+            ]
+        )->Fetch();
+//        return \Bitrix\Iblock\ElementTable::getList([
+//            'select' => ['ID', 'XML_ID', 'IBLOCK_ID'],
+//            'filter' => ['=XML_ID' => $this->externalId->get()]
+//        ])->fetch();
     }
 
     public function addField($name, $value)
@@ -131,9 +144,59 @@ abstract class AbstractSaver implements Saver
     public static function getByExternalId(ExternalId $externalId)
     {
         return \Bitrix\Iblock\ElementTable::getList([
-            'select' => ['ID'],
+            'select' => ['ID', 'ACTIVE'],
             'filter' => ['=XML_ID' => $externalId->get()],
             'limit' => 1
         ])->fetch();
+    }
+
+    /**
+     * [
+     *  'BUILDING' => BuildingExternalId,
+     * 'FLOOR' => FloorExternalId.
+     * ]
+     * @param array $externalsId
+     * @return bool
+     */
+    public static function getPropertyValuesByExternals(array $externalsId)
+    {
+        if (empty($externalsId)) {
+            return false;
+        }
+
+        //1. get xml_id from externals
+        $result = [];
+        foreach ($externalsId as $propertyName => $externalId) {
+            $result[$externalId->get()] = [
+                'XML_ID' => $externalId->get(),
+                'PROPERTY_CODE' => $propertyName
+            ];
+        }
+
+        if (!empty($result)) {
+            $rsElements = \Bitrix\Iblock\ElementTable::getList([
+                'select' => ['ID', 'XML_ID', 'ACTIVE'],
+                'filter' => ['XML_ID' => array_keys($result)]
+                ]
+            );
+            while ($item = $rsElements->fetch()) {
+                $result[$item['XML_ID']]['ID'] = $item['ID'];
+                $result[$item['XML_ID']]['ACTIVE'] = $item['ACTIVE'];
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Признак необходимости сохранения записи
+     * К примеру: если ЖК не активно, то не нужно сохранять ни квартиры, ни его корпус
+     *            если Корпус не активен, то не нужно сохранять квартиры
+     *
+     * @return bool
+     */
+    protected function isNeedSave()
+    {
+        return true;
     }
 }
