@@ -20,6 +20,7 @@ class BuildingSaver extends AbstractSaver
 //        $this->addField('CODE', \CUtil::translit($this->node->getBuildingName() . $this->node->getBuildingSection(), 'ru'));
         $this->addField('XML_ID', $this->externalId->get());
         $this->addField('IBLOCK_ID', $this->iblockId);
+        $this->addField('ACTIVE', 'N');
 
         $this->addProperty('ENDING_YEAR', $this->node->getBuildYear());
         $this->addProperty('ENDING_QUARTER', $this->node->getReadyQuarter());
@@ -46,7 +47,7 @@ class BuildingSaver extends AbstractSaver
             'select' => ['ID'],
             'filter' => [
                 'ACTIVE' => 'Y',
-                'XML_ID' => FabricExternalId::getForComplex($this->node)
+                'XML_ID' => FabricExternalId::getForComplex($this->node)->get()
             ],
             'limit' => 1
         ])->fetch();

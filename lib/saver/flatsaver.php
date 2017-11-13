@@ -25,15 +25,15 @@ class FlatSaver extends AbstractSaver
         $this->addProperty('LIVING_SQUARE', $this->node->getLivingSpace());
         $this->addProperty('KITCHEN_SQUARE', $this->node->getKitchenSpace());
         $this->addProperty('CEILING_HEIGHT', $this->node->getCeilingHeight());
-        $this->addProperty('BALCONY', $this->node->getBalcony());
-        $this->addProperty('BATHROOM_UNIT', $this->node->getBathroomUnit());
 
         $propertiesData = static::getPropertyValuesByExternals([
             'DISTRICT' => FabricExternalId::getForComplex($this->node),
             'BUILDING' => FabricExternalId::getForBuilding($this->node),
             'FLOOR' => FabricExternalId::getForFloor($this->node),
             'FACING' => FabricExternalId::getForRenovation($this->node),
-            'ROOM_NUMBER' => FabricExternalId::getForRooms($this->node)
+            'ROOM_NUMBER' => FabricExternalId::getForRooms($this->node),
+            'BALCONY' => FabricExternalId::getForBalcony($this->node),
+            'BATHROOM_UNIT' => FabricExternalId::getForBathroomUnit($this->node)
         ]);
 
         if (false !== $propertiesData && !empty($propertiesData)) {
@@ -41,5 +41,17 @@ class FlatSaver extends AbstractSaver
                 $this->addProperty($item['PROPERTY_CODE'], $item['ID']);
             }
         }
+    }
+
+    protected function isNeedSave()
+    {
+        //Если корпус существует и активен, то грузим квартиры
+        return \Bitrix\Iblock\ElementTable::getList([
+            'select' => ['ID'],
+            'filter' => [
+                'ACTIVE' => 'Y',
+                'XML_ID' => FabricExternalId::getForBuilding($this->node)->get()
+            ]
+        ])->fetch();
     }
 }

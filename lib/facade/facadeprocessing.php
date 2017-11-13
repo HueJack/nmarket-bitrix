@@ -47,17 +47,12 @@ class FacadeProcessing
             if ($xmlReader->nodeType == \XMLReader::TEXT) {
                 $fields[$currentInternalId]['fields'][$currentNode] = $xmlReader->value;
             }
+
             if ($xmlReader->nodeType == \XMLReader::END_ELEMENT && $xmlReader->localName == 'offer') {
-
                 self::save($fields);
-
 
                 unset($fields);
                 $fields = [];
-
-                if ($index == 500) {
-                    break;
-                }
 
                 $index++;
             }
@@ -92,14 +87,26 @@ class FacadeProcessing
         $IBLOCK_FLOORS = 12;
         $IBLOCK_FLAT = 13;
         $IBLOCK_ROOMS = 14;
+        $IBLOCK_LOCALITY = 17;
         $IBLOCK_BUILDING_PHASE = 24;
+        $IBLOCK_REGION = 25;
+        $IBLOCK_BATHROOM_UNIT = 27;
+        $IBLOCK_BALCONY = 28;
 
         $nodeOffer = new \Fgsoft\Nmarket\Node\OfferNode($fields);
 
         //Сначала заполняем справочники
+        $localitySaver = new DictionarySaver($nodeOffer, FabricExternalId::getForLocalityName($nodeOffer), $IBLOCK_LOCALITY, 'locality-name');
+        $localitySaver->save();
+
+        $regionSaver = new DictionarySaver($nodeOffer, FabricExternalId::getForRegion($nodeOffer), $IBLOCK_REGION, 'region');
+        $regionSaver->save();
+
         //Район
-        $dictionarySaver = new DictionarySaver($nodeOffer, FabricExternalId::getForTownarea($nodeOffer), $IBLOCK_TOWNAREA, 'sub-locality-name');
+        $dictionarySaver = new DictionarySaver($nodeOffer, FabricExternalId::getForSubLocalityName($nodeOffer), $IBLOCK_TOWNAREA, 'sub-locality-name');
         $dictionarySaver->save();
+        $districtSaver = new DictionarySaver($nodeOffer, FabricExternalId::getForDistrict($nodeOffer), $IBLOCK_TOWNAREA, 'district');
+        $districtSaver->save();
 
         //Ремонт
         $renovationSaver = new DictionarySaver($nodeOffer, FabricExternalId::getForRenovation($nodeOffer), $IBLOCK_RENOVATION, 'renovation');
@@ -116,6 +123,14 @@ class FacadeProcessing
         //Фазы строительства
         $buildingPhaseSaver = new DictionarySaver($nodeOffer, FabricExternalId::getForBuildingPhase($nodeOffer), $IBLOCK_BUILDING_PHASE, 'building-phase');
         $buildingPhaseSaver->save();
+
+        //Тип балкона
+        $balconySaver = new DictionarySaver($nodeOffer, FabricExternalId::getForBalcony($nodeOffer), $IBLOCK_BALCONY, 'balcony');
+        $balconySaver->save();
+
+        //Тип балкона
+        $bathroomUnitSaver = new DictionarySaver($nodeOffer, FabricExternalId::getForBathroomUnit($nodeOffer), $IBLOCK_BATHROOM_UNIT, 'bathroom_unit');
+        $bathroomUnitSaver->save();
 
         //Сохранение комплекса
         $complexSaver = new ComplexSaver($nodeOffer, FabricExternalId::getForComplex($nodeOffer), $IBLOCK_COMPLEX, 'nmarket-complex-id');

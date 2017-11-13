@@ -9,7 +9,7 @@
 namespace Fgsoft\Nmarket\Saver;
 
 
-use Fgsoft\Nmarket\ExternalId\DictionaryExternalId;
+use Fgsoft\Nmarket\Fabric\FabricExternalId;
 
 class ComplexSaver extends AbstractSaver
 {
@@ -25,10 +25,16 @@ class ComplexSaver extends AbstractSaver
         $this->addProperty('ADDRESS', $this->node->getAddress());
         $this->addProperty('DONT_NEED_UPDATE', 'Y');
 
-        //Получаем район
-        $district = self::getByExternalId(new DictionaryExternalId($this->node, 'sub-locality-name'));
-        if (!empty($district['ID'])) {
-            $this->addProperty('TOWNAREA', $district['ID']);
+        $propertiesData = static::getPropertyValuesByExternals([
+            'TOWNAREA' => FabricExternalId::getForSubLocalityName($this->node),
+            'DISTRICT' => FabricExternalId::getForDistrict($this->node),
+            'LOCALITY_NAME' => FabricExternalId::getForLocalityName($this->node),
+        ]);
+
+        if (false !== $propertiesData && !empty($propertiesData)) {
+            foreach ($propertiesData as $item) {
+                $this->addProperty($item['PROPERTY_CODE'], $item['ID']);
+            }
         }
     }
 }

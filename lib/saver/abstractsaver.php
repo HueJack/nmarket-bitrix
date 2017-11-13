@@ -56,8 +56,6 @@ abstract class AbstractSaver implements Saver
         $this->nodeKey = $nodeKey;
         $this->externalId = $externalId;
         $this->iblockId = $iblockId;
-
-        $this->fillFields();
     }
 
     /**
@@ -68,9 +66,13 @@ abstract class AbstractSaver implements Saver
 
     public function save()
     {
+        //1. проверяем необходимость загрузки элемента
         if (!$this->isNeedSave()) {
             return;
         }
+
+        //2. Готовим поля и свойства элемента
+        $this->fillFields();
 
         if ($element = $this->getElement() && empty($element['PROPERTY_DONT_NEED_UPDATE_VALUE'])) {
             \CIBlockElement::SetPropertyValuesEx(
@@ -165,23 +167,28 @@ abstract class AbstractSaver implements Saver
         }
 
         //1. get xml_id from externals
-        $result = [];
+        $xmlIdExternals = [];
         foreach ($externalsId as $propertyName => $externalId) {
-            $result[$externalId->get()] = [
+            $xmlIdExternals[$externalId->get()] = [
                 'XML_ID' => $externalId->get(),
                 'PROPERTY_CODE' => $propertyName
             ];
         }
 
-        if (!empty($result)) {
+        $result = [];
+        if (!empty($xmlIdExternals)) {
             $rsElements = \Bitrix\Iblock\ElementTable::getList([
                 'select' => ['ID', 'XML_ID', 'ACTIVE'],
-                'filter' => ['XML_ID' => array_keys($result)]
+                'filter' => ['XML_ID' => array_keys($xmlIdExternals)]
                 ]
             );
             while ($item = $rsElements->fetch()) {
-                $result[$item['XML_ID']]['ID'] = $item['ID'];
-                $result[$item['XML_ID']]['ACTIVE'] = $item['ACTIVE'];
+                $result[$item['XML_ID']] = [
+                    'ID' => $item['ID'],
+                    'ACTIVE' => $item['ACTIVE'],
+                    'PROPERTY_CODE' => $xmlIdExternals[$item['XML_ID']]['PROPERTY_CODE'],
+                    'XML_ID' => $item['XML_ID']
+                ];
             }
         }
 

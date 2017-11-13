@@ -21,6 +21,9 @@ class FabricExternalId
     public static function get(Node $node, $type)
     {
         switch ($type) {
+            case 'locality-name':
+                return new DictionaryExternalId($node, 'locality-name');
+                break;
             case 'sub-locality-name':
                 return new DictionaryExternalId($node, 'sub-locality-name');
                 break;
@@ -30,11 +33,23 @@ class FabricExternalId
             case 'rooms':
                 return new DictionaryExternalId($node, 'rooms', 'rooms');
                 break;
+            case 'region':
+                return new DictionaryExternalId($node, 'region', 'region');
+                break;
+            case 'district':
+                return new DictionaryExternalId($node, 'district', 'district');
+                break;
              case 'building-type':
                 return new DictionaryExternalId($node, 'building-type');
                 break;
             case 'building-phase':
                 return  new DictionaryExternalId($node, 'building-phase', 'building-phase');
+                break;
+            case 'balcony':
+                return  new DictionaryExternalId($node, 'balcony', 'balcony');
+                break;
+            case 'bathroom_unit':
+                return  new DictionaryExternalId($node, 'bathroom_unit', 'bathroom_unit');
                 break;
             case 'nmarket-complex-id':
                 return new RealExternalId($node, 'nmarket-complex-id');
@@ -55,11 +70,42 @@ class FabricExternalId
     }
 
     /**
-     * Для района
+     * Название субъекта РФ
+     * @param Node $node
+     * @return BuildingExternalId|FlatExternalId|FloorExternalId
+     */
+    public static function getForRegion(Node $node)
+    {
+        return static::get($node, 'region');
+    }
+
+    /**
+     * Название района субъекта РФ.
+     * @param Node $node
+     * @return BuildingExternalId|FlatExternalId|FloorExternalId
+     */
+    public static function getForDistrict(Node $node)
+    {
+        return static::get($node, 'district');
+    }
+
+
+    /**
+     * Населенный пункт
      * @param $node
      * @return BuildingExternalId|FlatExternalId|FloorExternalId
      */
-    public static function getForTownarea(Node $node)
+    public static function getForLocalityName(Node $node)
+    {
+        return static::get($node, 'locality-name');
+    }
+
+    /**
+     * Район населенного пункта.
+     * @param $node
+     * @return BuildingExternalId|FlatExternalId|FloorExternalId
+     */
+    public static function getForSubLocalityName(Node $node)
     {
         return static::get($node, 'sub-locality-name');
     }
@@ -142,5 +188,20 @@ class FabricExternalId
     public static function getForFlat(Node $node)
     {
         return static::get($node, 'flat');
+    }
+
+    /**
+     *
+     * @param Node $node
+     * @return BuildingExternalId|FlatExternalId|FloorExternalId
+     */
+    public static function getForBalcony(Node $node)
+    {
+        return static::get($node, 'balcony');
+    }
+
+    public static function getForBathroomUnit(Node $node)
+    {
+        return static::get($node, 'bathroom_unit');
     }
 }

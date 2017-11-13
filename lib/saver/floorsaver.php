@@ -7,13 +7,11 @@
 
 namespace Fgsoft\Nmarket\Saver;
 
-
-use Fgsoft\Nmarket\ExternalId\BuildingExternalId;
 use Fgsoft\Nmarket\Fabric\FabricExternalId;
 
 class FloorSaver extends AbstractSaver
 {
-    function fillFields()
+    public function fillFields()
     {
         $this->addField('NAME', $this->node->get($this->nodeKey));
         $this->addField('XML_ID', $this->externalId->get());
@@ -25,5 +23,16 @@ class FloorSaver extends AbstractSaver
         }
 
         $this->addProperty('DONT_NEED_UPDATE', 'Y');
+    }
+
+    protected function isNeedSave()
+    {
+        return \Bitrix\Iblock\ElementTable::getList([
+            'select' => ['ID'],
+            'filter' => [
+                'ACTIVE' => 'Y',
+                'XML_ID' => FabricExternalId::getForBuilding($this->node)->get()
+            ]
+        ])->fetch();
     }
 }

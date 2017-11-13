@@ -12,7 +12,7 @@ class DictionaryExternalId extends AbstractExternalId
 {
     protected function generate()
     {
-        $this->externalId = md5(mb_strtoupper($this->node->get($this->key) . $this->sugar));
+        $this->externalId = md5(mb_strtoupper(trim($this->node->get($this->key)) . $this->sugar));
     }
 
 }
