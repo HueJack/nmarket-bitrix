@@ -17,7 +17,7 @@ class FloorSaver extends AbstractSaver
         $this->addField('XML_ID', $this->externalId->get());
         $this->addField('IBLOCK_ID', $this->iblockId);
 
-        $building = self::getByExternalId(FabricExternalId::getForBuilding($this->node));
+        $building = $this->getByExternalId(FabricExternalId::getForBuilding($this->node));
         if (!empty($building['ID'])) {
             $this->addProperty('BUILDING', $building['ID']);
         }

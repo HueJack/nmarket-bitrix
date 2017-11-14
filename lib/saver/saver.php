@@ -12,7 +12,5 @@ use Fgsoft\Nmarket\ExternalId\ExternalId;
 
 interface Saver
 {
-    public function __construct(Node $node, ExternalId $externalId, $iblockId, $nodeKey = '');
-
     public function save();
 }

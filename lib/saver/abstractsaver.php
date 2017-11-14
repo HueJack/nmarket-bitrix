@@ -8,12 +8,11 @@
 namespace Fgsoft\Nmarket\Saver;
 
 
+use Fgsoft\Nmarket\Cache\Cache;
+use Fgsoft\Nmarket\Cache\Memcache;
 use Fgsoft\Nmarket\ExternalId\ExternalId;
 use Fgsoft\Nmarket\Node\Node;
-use Bitrix\Main\Loader;
 use Fgsoft\Nmarket\Node\OfferNode;
-
-Loader::includeModule('iblock');
 
 abstract class AbstractSaver implements Saver
 {
@@ -50,12 +49,29 @@ abstract class AbstractSaver implements Saver
 
     protected $iblockId;
 
-    public function __construct(Node $node, ExternalId $externalId, $iblockId, $nodeKey = '')
+    /**
+     * @var Cache|Memcache
+     */
+    protected $cache;
+
+    /**
+     * AbstractSaver constructor.
+     * @param Node $node
+     * @param ExternalId $externalId
+     * @param $iblockId
+     * @param string $nodeKey
+     * @param null|Cache|Memcache $cache
+     */
+    public function __construct(Node $node, ExternalId $externalId, $iblockId, $nodeKey = '', $cache = null)
     {
         $this->node = $node;
         $this->nodeKey = $nodeKey;
         $this->externalId = $externalId;
         $this->iblockId = $iblockId;
+
+        if ($cache instanceof Cache) {
+            $this->cache = $cache;
+        }
     }
 
     /**
@@ -84,8 +100,8 @@ abstract class AbstractSaver implements Saver
             $this->prepareFields();
             $ciblockelement = new \CIBlockElement();
             if (!$ciblockelement->Add($this->fields)) {
-                echo 'Ошибка ' . $ciblockelement->LAST_ERROR . '<br>';
-                print_r($this->fields);
+//                echo 'Ошибка ' . $ciblockelement->LAST_ERROR . '<br>';
+//                print_r($this->fields);
             }
         }
     }
@@ -117,15 +133,23 @@ abstract class AbstractSaver implements Saver
 
     public function getElement()
     {
-        return \CIBlockElement::GetList(
-            [],
-            ['=XML_ID' => $this->externalId->get()],
-            false,
-            ['nTopCount' => 1],
-            [
-                'ID', 'IBLOCK_ID', 'XML_ID', 'PROPERTY_DONT_NEED_UPDATE'
-            ]
-        )->Fetch();
+        if (!($result = $this->getFromCache($this->externalId->get()))) {
+            $result = \CIBlockElement::GetList(
+                [],
+                ['=XML_ID' => $this->externalId->get()],
+                false,
+                ['nTopCount' => 1],
+                [
+                    'ID', 'IBLOCK_ID', 'XML_ID', 'ACTIVE', 'PROPERTY_DONT_NEED_UPDATE'
+                ]
+            )->Fetch();
+
+            $this->setToCache($this->externalId->get(), $result);
+        } else {
+            echo 'getElement из кэша <br>';
+        }
+
+        return $result;
 //        return \Bitrix\Iblock\ElementTable::getList([
 //            'select' => ['ID', 'XML_ID', 'IBLOCK_ID'],
 //            'filter' => ['=XML_ID' => $this->externalId->get()]
@@ -143,13 +167,23 @@ abstract class AbstractSaver implements Saver
         $this->fields['PROPERTY_VALUES'][$name] = $value;
     }
 
-    public static function getByExternalId(ExternalId $externalId)
+    public function getByExternalId(ExternalId $externalId)
     {
-        return \Bitrix\Iblock\ElementTable::getList([
-            'select' => ['ID', 'ACTIVE'],
-            'filter' => ['=XML_ID' => $externalId->get()],
-            'limit' => 1
-        ])->fetch();
+        $result = [];
+
+        if (!($result = $this->getFromCache($externalId->get()))) {
+            $result = \Bitrix\Iblock\ElementTable::getList([
+                'select' => ['ID', 'ACTIVE', 'XML_ID'],
+                'filter' => ['=XML_ID' => $externalId->get()],
+                'limit' => 1
+            ])->fetch();
+
+            $this->setToCache($externalId->get(), $result);
+        } else {
+            echo 'getByExternalId из кэша <br>';
+        }
+
+        return $result;
     }
 
     /**
@@ -160,37 +194,41 @@ abstract class AbstractSaver implements Saver
      * @param array $externalsId
      * @return bool
      */
-    public static function getPropertyValuesByExternals(array $externalsId)
+    public function getPropertyValuesByExternals(array $externalsId)
     {
         if (empty($externalsId)) {
             return false;
         }
 
         //1. get xml_id from externals
-        $xmlIdExternals = [];
+        $result = [];
         foreach ($externalsId as $propertyName => $externalId) {
-            $xmlIdExternals[$externalId->get()] = [
+            $element = $this->getByExternalId($externalId);
+            $result[$externalId->get()] = [
                 'XML_ID' => $externalId->get(),
-                'PROPERTY_CODE' => $propertyName
+                'PROPERTY_CODE' => $propertyName,
+                'ID' => $element['ID'],
+                'ACTIVE' => $element['ACTIVE'],
             ];
         }
 
-        $result = [];
-        if (!empty($xmlIdExternals)) {
-            $rsElements = \Bitrix\Iblock\ElementTable::getList([
-                'select' => ['ID', 'XML_ID', 'ACTIVE'],
-                'filter' => ['XML_ID' => array_keys($xmlIdExternals)]
-                ]
-            );
-            while ($item = $rsElements->fetch()) {
-                $result[$item['XML_ID']] = [
-                    'ID' => $item['ID'],
-                    'ACTIVE' => $item['ACTIVE'],
-                    'PROPERTY_CODE' => $xmlIdExternals[$item['XML_ID']]['PROPERTY_CODE'],
-                    'XML_ID' => $item['XML_ID']
-                ];
-            }
-        }
+//        $cacheKey = '';
+//        $result = [];
+//        if (!empty($xmlIdExternals)) {
+//            $rsElements = \Bitrix\Iblock\ElementTable::getList([
+//                'select' => ['ID', 'XML_ID', 'ACTIVE'],
+//                'filter' => ['XML_ID' => array_keys($xmlIdExternals)]
+//                ]
+//            );
+//            while ($item = $rsElements->fetch()) {
+//                $result[$item['XML_ID']] = [
+//                    'ID' => $item['ID'],
+//                    'ACTIVE' => $item['ACTIVE'],
+//                    'PROPERTY_CODE' => $xmlIdExternals[$item['XML_ID']]['PROPERTY_CODE'],
+//                    'XML_ID' => $item['XML_ID']
+//                ];
+//            }
+//        }
 
         return $result;
     }
@@ -205,5 +243,23 @@ abstract class AbstractSaver implements Saver
     protected function isNeedSave()
     {
         return true;
+    }
+
+    protected function getFromCache($key)
+    {
+        if (null == $this->cache) {
+            return false;
+        }
+
+        return $this->cache->get($key);
+    }
+
+    protected function setToCache($key, $value)
+    {
+        if (null == $this->cache) {
+            return false;
+        }
+
+        return $this->cache->set($key, $value);
     }
 }

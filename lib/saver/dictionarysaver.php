@@ -12,6 +12,7 @@ class DictionarySaver extends AbstractSaver
 {
     function fillFields()
     {
+
         $this->addField('NAME', $this->node->get($this->nodeKey));
         $this->addField('XML_ID', $this->externalId->get());
         $this->addField('IBLOCK_ID', $this->iblockId);

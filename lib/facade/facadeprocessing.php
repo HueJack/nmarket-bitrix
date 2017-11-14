@@ -8,12 +8,14 @@
 
 namespace Fgsoft\Nmarket\Facade;
 
+use Fgsoft\Nmarket\Cache\Memcache;
 use Fgsoft\Nmarket\Fabric\FabricExternalId;
 use Fgsoft\Nmarket\Saver\BuildingSaver;
 use Fgsoft\Nmarket\Saver\ComplexSaver;
 use Fgsoft\Nmarket\Saver\DictionarySaver;
 use Fgsoft\Nmarket\Saver\FlatSaver;
 use Fgsoft\Nmarket\Saver\FloorSaver;
+use \Bitrix\Main\Loader;
 
 class FacadeProcessing
 {
@@ -24,6 +26,10 @@ class FacadeProcessing
         $currentInternalId = 0;
         $currentNode = '';
         $index = 0;
+
+        Loader::includeModule('iblock');
+
+        $memcache =  new Memcache('localhost', 11211);
 
         while ($xmlReader->read()) {
             if ($xmlReader->nodeType == \XMLReader::ELEMENT && $xmlReader->localName == 'offer') {
@@ -49,10 +55,11 @@ class FacadeProcessing
             }
 
             if ($xmlReader->nodeType == \XMLReader::END_ELEMENT && $xmlReader->localName == 'offer') {
-                self::save($fields);
+                self::save($fields, $memcache);
 
                 unset($fields);
                 $fields = [];
+
 
                 $index++;
             }
@@ -79,7 +86,7 @@ class FacadeProcessing
         }
     }
 
-    protected static function save($fields)
+    protected static function save($fields, $cache)
     {
         $IBLOCK_COMPLEX = 1;
         $IBLOCK_TOWNAREA = 2;
@@ -97,80 +104,58 @@ class FacadeProcessing
 
         $nodeOffer = new \Fgsoft\Nmarket\Node\OfferNode($fields);
 
-        //Сделаем выборку активных комплексов и строений, чтобы ограничивать обработку в xml
-        $hashActiveElements = [];
-        $rs = \Bitrix\Iblock\ElementTable::getList([
-            'select' => ['XML_ID'],
-            'filter' => ['IBLOCK_ID' => [$IBLOCK_COMPLEX, $IBLOCK_BUILDING], 'ACTIVE' => 'Y']
-        ]);
-        while ($item = $rs->fetch()) {
-            $hashActiveElements[] = $item['XML_ID'];
-        }
-
-
         //Сначала заполняем справочники
-        $localitySaver = new DictionarySaver($nodeOffer, FabricExternalId::getForLocalityName($nodeOffer), $IBLOCK_LOCALITY, 'locality-name');
+        $localitySaver = new DictionarySaver($nodeOffer, FabricExternalId::getForLocalityName($nodeOffer), $IBLOCK_LOCALITY, 'locality-name', $cache);
         $localitySaver->save();
 
-        $regionSaver = new DictionarySaver($nodeOffer, FabricExternalId::getForRegion($nodeOffer), $IBLOCK_REGION, 'region');
+        $regionSaver = new DictionarySaver($nodeOffer, FabricExternalId::getForRegion($nodeOffer), $IBLOCK_REGION, 'region', $cache);
         $regionSaver->save();
 
         //Район
-        $dictionarySaver = new DictionarySaver($nodeOffer, FabricExternalId::getForSubLocalityName($nodeOffer), $IBLOCK_TOWNAREA, 'sub-locality-name');
+        $dictionarySaver = new DictionarySaver($nodeOffer, FabricExternalId::getForSubLocalityName($nodeOffer), $IBLOCK_TOWNAREA, 'sub-locality-name', $cache);
         $dictionarySaver->save();
-        $districtSaver = new DictionarySaver($nodeOffer, FabricExternalId::getForDistrict($nodeOffer), $IBLOCK_TOWNAREA, 'district');
+        $districtSaver = new DictionarySaver($nodeOffer, FabricExternalId::getForDistrict($nodeOffer), $IBLOCK_TOWNAREA, 'district', $cache);
         $districtSaver->save();
 
         //Ремонт
-        $renovationSaver = new DictionarySaver($nodeOffer, FabricExternalId::getForRenovation($nodeOffer), $IBLOCK_RENOVATION, 'renovation');
+        $renovationSaver = new DictionarySaver($nodeOffer, FabricExternalId::getForRenovation($nodeOffer), $IBLOCK_RENOVATION, 'renovation', $cache);
         $renovationSaver->save();
 
         //Возможные количества комнат
-        $roomsSaver = new DictionarySaver($nodeOffer, FabricExternalId::getForRooms($nodeOffer), $IBLOCK_ROOMS, 'rooms');
+        $roomsSaver = new DictionarySaver($nodeOffer, FabricExternalId::getForRooms($nodeOffer), $IBLOCK_ROOMS, 'rooms', $cache);
         $roomsSaver->save();
 
         //Тип дома
-        $buildingTypeSaver = new DictionarySaver($nodeOffer, FabricExternalId::getForBuildingType($nodeOffer), $IBLOCK_BUILDING_TYPE, 'building-type');
+        $buildingTypeSaver = new DictionarySaver($nodeOffer, FabricExternalId::getForBuildingType($nodeOffer), $IBLOCK_BUILDING_TYPE, 'building-type', $cache);
         $buildingTypeSaver->save();
 
         //Фазы строительства
-        $buildingPhaseSaver = new DictionarySaver($nodeOffer, FabricExternalId::getForBuildingPhase($nodeOffer), $IBLOCK_BUILDING_PHASE, 'building-phase');
+        $buildingPhaseSaver = new DictionarySaver($nodeOffer, FabricExternalId::getForBuildingPhase($nodeOffer), $IBLOCK_BUILDING_PHASE, 'building-phase', $cache);
         $buildingPhaseSaver->save();
 
         //Тип балкона
-        $balconySaver = new DictionarySaver($nodeOffer, FabricExternalId::getForBalcony($nodeOffer), $IBLOCK_BALCONY, 'balcony');
+        $balconySaver = new DictionarySaver($nodeOffer, FabricExternalId::getForBalcony($nodeOffer), $IBLOCK_BALCONY, 'balcony', $cache);
         $balconySaver->save();
 
         //Тип балкона
-        $bathroomUnitSaver = new DictionarySaver($nodeOffer, FabricExternalId::getForBathroomUnit($nodeOffer), $IBLOCK_BATHROOM_UNIT, 'bathroom-unit');
+        $bathroomUnitSaver = new DictionarySaver($nodeOffer, FabricExternalId::getForBathroomUnit($nodeOffer), $IBLOCK_BATHROOM_UNIT, 'bathroom-unit', $cache);
         $bathroomUnitSaver->save();
 
         //Сохранение комплекса
-        $complexSaver = new ComplexSaver($nodeOffer, FabricExternalId::getForComplex($nodeOffer), $IBLOCK_COMPLEX, 'nmarket-complex-id');
+        $complexSaver = new ComplexSaver($nodeOffer, FabricExternalId::getForComplex($nodeOffer), $IBLOCK_COMPLEX, 'nmarket-complex-id', $cache);
         $complexSaver->save();
 
 
-        //Если нет активных комплексом, то дальше не загружаем
-        if (!in_array(FabricExternalId::getForComplex($nodeOffer)->get(), $hashActiveElements)) {
-            return;
-        }
-
         //Сохранение корпуса
-        $buildingSaver = new BuildingSaver($nodeOffer, FabricExternalId::getForBuilding($nodeOffer), $IBLOCK_BUILDING, 'nmarket-building-id');
+        $buildingSaver = new BuildingSaver($nodeOffer, FabricExternalId::getForBuilding($nodeOffer), $IBLOCK_BUILDING, 'nmarket-building-id', $cache);
         $buildingSaver->save();
 
-
-        ///Если нет активных корпусов, то квартиры не загружаем
-        if (!in_array(FabricExternalId::getForBuilding($nodeOffer)->get(), $hashActiveElements)) {
-            return;
-        }
-
         //Создаем этажи
-         $floorSaver = new FloorSaver($nodeOffer, FabricExternalId::getForFloor($nodeOffer), $IBLOCK_FLOORS, 'floor');
+         $floorSaver = new FloorSaver($nodeOffer, FabricExternalId::getForFloor($nodeOffer), $IBLOCK_FLOORS, 'floor', $cache);
          $floorSaver->save();
 
          //Сохранение кварир
-        $flatSaver = new FlatSaver($nodeOffer, FabricExternalId::getForFlat($nodeOffer), $IBLOCK_FLAT);
+        $flatSaver = new FlatSaver($nodeOffer, FabricExternalId::getForFlat($nodeOffer), $IBLOCK_FLAT, $cache);
         $flatSaver->save();
     }
 }

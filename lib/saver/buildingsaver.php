@@ -27,7 +27,7 @@ class BuildingSaver extends AbstractSaver
         $this->addProperty('FLOORS', $this->node->getFloorsTotal());
         $this->addProperty('DONT_NEED_UPDATE', 'Y');
 
-        $propertiesData = static::getPropertyValuesByExternals([
+        $propertiesData = $this->getPropertyValuesByExternals([
             'DISTRICT' => FabricExternalId::getForComplex($this->node),
             'BUILDING_PHASE' => FabricExternalId::getForBuildingPhase($this->node),
             'BUILDING_TYPE' => FabricExternalId::getForBuildingType($this->node)
