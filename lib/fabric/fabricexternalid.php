@@ -48,7 +48,7 @@ class FabricExternalId
             case 'balcony':
                 return  new DictionaryExternalId($node, 'balcony', 'balcony');
                 break;
-            case 'bathroom_unit':
+            case 'bathroom-unit':
                 return  new DictionaryExternalId($node, 'bathroom_unit', 'bathroom_unit');
                 break;
             case 'nmarket-complex-id':
@@ -202,6 +202,6 @@ class FabricExternalId
 
     public static function getForBathroomUnit(Node $node)
     {
-        return static::get($node, 'bathroom_unit');
+        return static::get($node, 'bathroom-unit');
     }
 }

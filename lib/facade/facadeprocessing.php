@@ -59,6 +59,8 @@ class FacadeProcessing
         }
 
         $xmlReader->close();
+
+        echo 'Количество строк . ' . $index;
     }
 
     /**
@@ -95,6 +97,17 @@ class FacadeProcessing
 
         $nodeOffer = new \Fgsoft\Nmarket\Node\OfferNode($fields);
 
+        //Сделаем выборку активных комплексов и строений, чтобы ограничивать обработку в xml
+        $hashActiveElements = [];
+        $rs = \Bitrix\Iblock\ElementTable::getList([
+            'select' => ['XML_ID'],
+            'filter' => ['IBLOCK_ID' => [$IBLOCK_COMPLEX, $IBLOCK_BUILDING], 'ACTIVE' => 'Y']
+        ]);
+        while ($item = $rs->fetch()) {
+            $hashActiveElements[] = $item['XML_ID'];
+        }
+
+
         //Сначала заполняем справочники
         $localitySaver = new DictionarySaver($nodeOffer, FabricExternalId::getForLocalityName($nodeOffer), $IBLOCK_LOCALITY, 'locality-name');
         $localitySaver->save();
@@ -129,16 +142,28 @@ class FacadeProcessing
         $balconySaver->save();
 
         //Тип балкона
-        $bathroomUnitSaver = new DictionarySaver($nodeOffer, FabricExternalId::getForBathroomUnit($nodeOffer), $IBLOCK_BATHROOM_UNIT, 'bathroom_unit');
+        $bathroomUnitSaver = new DictionarySaver($nodeOffer, FabricExternalId::getForBathroomUnit($nodeOffer), $IBLOCK_BATHROOM_UNIT, 'bathroom-unit');
         $bathroomUnitSaver->save();
 
         //Сохранение комплекса
         $complexSaver = new ComplexSaver($nodeOffer, FabricExternalId::getForComplex($nodeOffer), $IBLOCK_COMPLEX, 'nmarket-complex-id');
         $complexSaver->save();
 
+
+        //Если нет активных комплексом, то дальше не загружаем
+        if (!in_array(FabricExternalId::getForComplex($nodeOffer)->get(), $hashActiveElements)) {
+            return;
+        }
+
         //Сохранение корпуса
         $buildingSaver = new BuildingSaver($nodeOffer, FabricExternalId::getForBuilding($nodeOffer), $IBLOCK_BUILDING, 'nmarket-building-id');
         $buildingSaver->save();
+
+
+        ///Если нет активных корпусов, то квартиры не загружаем
+        if (!in_array(FabricExternalId::getForBuilding($nodeOffer)->get(), $hashActiveElements)) {
+            return;
+        }
 
         //Создаем этажи
          $floorSaver = new FloorSaver($nodeOffer, FabricExternalId::getForFloor($nodeOffer), $IBLOCK_FLOORS, 'floor');
