@@ -45,6 +45,9 @@ class FabricExternalId
             case 'building-phase':
                 return  new DictionaryExternalId($node, 'building-phase', 'building-phase');
                 break;
+            case 'building-state':
+                return  new DictionaryExternalId($node, 'building-state', 'building-state');
+                break;
             case 'balcony':
                 return  new DictionaryExternalId($node, 'balcony', 'balcony');
                 break;
@@ -148,6 +151,16 @@ class FabricExternalId
     public static function getForBuildingPhase(Node $node)
     {
         return static::get($node, 'building-phase');
+    }
+
+    /**
+     * Стадия строительства дома
+     * @param Node $node
+     * @return BuildingExternalId|FlatExternalId|FloorExternalId
+     */
+    public static function getForBuildingState(Node $node)
+    {
+        return static::get($node, 'building-state');
     }
 
     /**

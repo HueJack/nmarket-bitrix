@@ -90,12 +90,16 @@ abstract class AbstractSaver implements Saver
         //2. Готовим поля и свойства элемента
         $this->fillFields();
 
-        if ($element = $this->getElement() && empty($element['PROPERTY_DONT_NEED_UPDATE_VALUE'])) {
+        if ($element = $this->getElement() && (empty($element['PROPERTY_UPDATE_NOW_VALUE']) || $element['PROPERTY_UPDATE_NOW_VALUE'] == 'N')) {
             \CIBlockElement::SetPropertyValuesEx(
                 $element['ID'],
                 $element['IBLOCK_ID'],
                 $this->fields['PROPERTY_VALUES']
             );
+
+            $element['PROPERTY_UPDATE_NOW_VALUE'] = 'Y';
+            $this->setToCache($this->externalId->get(), $element);
+
         } else {
             $this->prepareFields();
             $ciblockelement = new \CIBlockElement();
@@ -140,13 +144,11 @@ abstract class AbstractSaver implements Saver
                 false,
                 ['nTopCount' => 1],
                 [
-                    'ID', 'IBLOCK_ID', 'XML_ID', 'ACTIVE', 'PROPERTY_DONT_NEED_UPDATE'
+                    'ID', 'IBLOCK_ID', 'XML_ID', 'ACTIVE', 'PROPERTY_UPDATED_NOW'
                 ]
             )->Fetch();
 
-            $this->setToCache($this->externalId->get(), $result);
-        } else {
-            echo 'getElement из кэша <br>';
+           //Устанавливаем кэш после обновления элемента
         }
 
         return $result;
@@ -179,8 +181,6 @@ abstract class AbstractSaver implements Saver
             ])->fetch();
 
             $this->setToCache($externalId->get(), $result);
-        } else {
-            echo 'getByExternalId из кэша <br>';
         }
 
         return $result;
@@ -240,7 +240,7 @@ abstract class AbstractSaver implements Saver
      *
      * @return bool
      */
-    protected function isNeedSave()
+    public function isNeedSave()
     {
         return true;
     }

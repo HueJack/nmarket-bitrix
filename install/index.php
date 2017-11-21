@@ -10,6 +10,11 @@ class FGSOFT_NMARKET extends \CModule
 {
     public static $STATIC_MODULE_ID = 'fgsoft.nmarket';
 
+    public static $MODELS = [
+        '\Fgsoft\Nmarket\Model\FlatParamTable',
+        '\Fgsoft\Nmarket\Model\FilesTable'
+    ];
+
     public function __construct()
     {
         $arModuleVersion = array();
@@ -47,6 +52,8 @@ class FGSOFT_NMARKET extends \CModule
             $APPLICATION->ThrowException(Loc::getMessage('FGSOFT_NMARKET_DONT_COPY_FILES'));
         }
 
+        $this->registerAgents();
+
         $APPLICATION->IncludeAdminFile(Loc::getMessage('FGSOFT_NMARKET_INSTALL_SUCCESS_TITLE'), $this->getPath() . '/install/step.php');
         
     }
@@ -54,6 +61,8 @@ class FGSOFT_NMARKET extends \CModule
     public function DoUninstall()
     {
         Loader::includeModule($this->MODULE_ID);
+        $this->unregisterAgents();
+
         $this->UnInstallDB();
         ModuleManager::unRegisterModule($this->MODULE_ID);
     }
@@ -64,11 +73,14 @@ class FGSOFT_NMARKET extends \CModule
 
         Loader::includeModule($this->MODULE_ID);
 
-        if (!\Bitrix\Main\Application::getConnection((Fgsoft\Nmarket\Model\FlatParamTable::getConnectionName()))->isTableExists(
-            \Bitrix\Main\Entity\Base::getInstance('\Fgsoft\Nmarket\Model\FlatParamTable')->getDBTableName()
-        )){
-            \Bitrix\Main\Entity\Base::getInstance('\Fgsoft\Nmarket\Model\FlatParamTable')->createDbTable();
+        foreach (self::$MODELS as $modelClass) {
+            if (!\Bitrix\Main\Application::getConnection((Fgsoft\Nmarket\Model\FlatParamTable::getConnectionName()))->isTableExists(
+                \Bitrix\Main\Entity\Base::getInstance($modelClass)->getDBTableName()
+            )){
+                \Bitrix\Main\Entity\Base::getInstance($modelClass)->createDbTable();
+            }
         }
+
     }
 
     public function UnInstallDB()
@@ -79,6 +91,34 @@ class FGSOFT_NMARKET extends \CModule
 //            \Bitrix\Main\Application::getConnection($entity::getConnectionName())
 //                ->queryExecute('drop table if exists ' . \Bitrix\Main\Entity\Base::getInstance($entity)->getDBTableName());
 //        }
+    }
+
+    private function registerAgents()
+    {
+        $date = new DateTime();
+        $date->modify('+1 day');
+        $date->setTime(6, '01', '00');
+
+        $nextDate =  FormatDateFromDB(date('d:m:Y h:m:s', $date->getTimestamp()), 'FULL');
+
+        \CAgent::Add([
+            'NAME' => '\Fgsoft\Nmarket\Agents\ProcessLoad::start();',
+            'MODULE_ID' => $this->MODULE_ID,
+            'PERIOD' => 'N',
+            'INTERVAL' => '86400',
+            'DATECHECK' => $nextDate,
+            'ACTIVE' => 'Y',
+
+            'NEXT_EXEC' => $nextDate
+        ]);
+    }
+
+    private function unregisterAgents()
+    {
+        \CAgent::RemoveAgent(
+            '\Fgsoft\Nmarket\Agents\ProcessLoad::start();',
+            $this->MODULE_ID
+        );
     }
 
     private function isVersionD7()

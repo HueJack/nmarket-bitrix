@@ -7,9 +7,6 @@
 
 namespace Fgsoft\Nmarket\Saver;
 
-
-use Fgsoft\Nmarket\ExternalId\DictionaryExternalId;
-use Fgsoft\Nmarket\ExternalId\RealExternalId;
 use Fgsoft\Nmarket\Fabric\FabricExternalId;
 
 class BuildingSaver extends AbstractSaver
@@ -25,12 +22,13 @@ class BuildingSaver extends AbstractSaver
         $this->addProperty('ENDING_YEAR', $this->node->getBuildYear());
         $this->addProperty('ENDING_QUARTER', $this->node->getReadyQuarter());
         $this->addProperty('FLOORS', $this->node->getFloorsTotal());
-        $this->addProperty('DONT_NEED_UPDATE', 'Y');
+        $this->addProperty('UPDATED_NOW', 'Y');
 
         $propertiesData = $this->getPropertyValuesByExternals([
             'DISTRICT' => FabricExternalId::getForComplex($this->node),
             'BUILDING_PHASE' => FabricExternalId::getForBuildingPhase($this->node),
-            'BUILDING_TYPE' => FabricExternalId::getForBuildingType($this->node)
+            'BUILDING_TYPE' => FabricExternalId::getForBuildingType($this->node),
+            'BUILDING_STATE' => FabricExternalId::getForBuildingState($this->node)
         ]);
 
         if (false !== $propertiesData && !empty($propertiesData)) {
@@ -38,18 +36,5 @@ class BuildingSaver extends AbstractSaver
                 $this->addProperty($item['PROPERTY_CODE'], $item['ID']);
             }
         }
-    }
-
-    protected function isNeedSave()
-    {
-        //Если не активен ЖК, то не обрабатываем корпус
-        return \Bitrix\Iblock\ElementTable::getList([
-            'select' => ['ID'],
-            'filter' => [
-                'ACTIVE' => 'Y',
-                'XML_ID' => FabricExternalId::getForComplex($this->node)->get()
-            ],
-            'limit' => 1
-        ])->fetch();
     }
 }

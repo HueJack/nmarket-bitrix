@@ -25,7 +25,7 @@ class FloorSaver extends AbstractSaver
         $this->addProperty('DONT_NEED_UPDATE', 'Y');
     }
 
-    protected function isNeedSave()
+    public function isNeedSave()
     {
         return \Bitrix\Iblock\ElementTable::getList([
             'select' => ['ID'],

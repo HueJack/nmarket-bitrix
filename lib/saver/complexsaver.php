@@ -23,7 +23,7 @@ class ComplexSaver extends AbstractSaver
         $this->addField('ACTIVE', 'N');
 
         $this->addProperty('ADDRESS', $this->node->getAddress());
-        $this->addProperty('DONT_NEED_UPDATE', 'Y');
+        $this->addProperty('UPDATED_NOW', 'Y');
 
         $propertiesData = $this->getPropertyValuesByExternals([
             'TOWNAREA' => FabricExternalId::getForSubLocalityName($this->node),
