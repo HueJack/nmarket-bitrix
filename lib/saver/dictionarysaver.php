@@ -29,4 +29,14 @@ class DictionarySaver extends AbstractSaver
         $this->addProperty('DONT_NEED_UPDATE', 'Y');
     }
 
+    public function isNeedSave()
+    {
+        if (null == $this->node->get($this->nodeKey)) {
+            return false;
+        }
+
+        return true;
+    }
+
+
 }

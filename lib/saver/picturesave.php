@@ -46,7 +46,7 @@ class PictureSave implements Saver
         $this->savePath = rtrim($savePath, '/') . '/files/' . $this->node->getInternalID();
 
         if (null == ($this->imageUrl = $this->node->getImage())) {
-            return;
+            throw new \Exception('image is empty');
         }
 
         $this->fileId = self::getPidByUrl($this->imageUrl);

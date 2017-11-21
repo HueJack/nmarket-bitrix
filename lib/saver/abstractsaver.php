@@ -8,9 +8,12 @@
 namespace Fgsoft\Nmarket\Saver;
 
 
+use Bitrix\Main\Diag\Debug;
 use Fgsoft\Nmarket\Cache\Cache;
 use Fgsoft\Nmarket\Cache\Memcache;
 use Fgsoft\Nmarket\ExternalId\ExternalId;
+use Fgsoft\Nmarket\Log\Log;
+use Fgsoft\Nmarket\Log\Logger;
 use Fgsoft\Nmarket\Node\Node;
 use Fgsoft\Nmarket\Node\OfferNode;
 
@@ -90,22 +93,28 @@ abstract class AbstractSaver implements Saver
         //2. Готовим поля и свойства элемента
         $this->fillFields();
 
-        if ($element = $this->getElement() && (empty($element['PROPERTY_UPDATE_NOW_VALUE']) || $element['PROPERTY_UPDATE_NOW_VALUE'] == 'N')) {
-            \CIBlockElement::SetPropertyValuesEx(
-                $element['ID'],
-                $element['IBLOCK_ID'],
-                $this->fields['PROPERTY_VALUES']
-            );
+        if (($element = $this->getElement())) {
+            if (empty($element['PROPERTY_UPDATED_NOW_VALUE']) || $element['PROPERTY_UPDATED_NOW_VALUE'] == 'N') {
+                \CIBlockElement::SetPropertyValuesEx(
+                    $element['ID'],
+                    $element['IBLOCK_ID'],
+                    $this->fields['PROPERTY_VALUES']
+                );
 
-            $element['PROPERTY_UPDATE_NOW_VALUE'] = 'Y';
-            $this->setToCache($this->externalId->get(), $element);
-
+                $element['PROPERTY_UPDATED_NOW_VALUE'] = 'Y';
+                $this->setToCache($this->externalId->get(), $element);
+            }
         } else {
             $this->prepareFields();
+
             $ciblockelement = new \CIBlockElement();
             if (!$ciblockelement->Add($this->fields)) {
-//                echo 'Ошибка ' . $ciblockelement->LAST_ERROR . '<br>';
-//                print_r($this->fields);
+                Logger::getInstance()->add(
+                    new Log(
+                        'ERROR_SAVE',
+                        $ciblockelement->LAST_ERROR . '(NODEKEY= ' . $this->nodeKey . ', INTERNAL_ID=' . $this->node->getInternalID() . ')\n\r'
+                    )
+                );
             }
         }
     }
@@ -120,12 +129,6 @@ abstract class AbstractSaver implements Saver
             $this->fields['PREVIEW_PICTURE'] = \CFile::MakeFileArray($this->fields['PREVIEW_PICTURE']);
             $this->setFileExtension($this->fields['PREVIEW_PICTURE']);
         }
-
-//        if (!empty($this->fields['PROPERTIES'])) {
-//            foreach ($this->fields['PROPERTIES'] as $propertyName => $value) {
-//
-//            }
-//        }
     }
 
     protected function setFileExtension(&$fileArray)
@@ -137,6 +140,8 @@ abstract class AbstractSaver implements Saver
 
     public function getElement()
     {
+        $result = [];
+
         if (!($result = $this->getFromCache($this->externalId->get()))) {
             $result = \CIBlockElement::GetList(
                 [],
@@ -152,10 +157,6 @@ abstract class AbstractSaver implements Saver
         }
 
         return $result;
-//        return \Bitrix\Iblock\ElementTable::getList([
-//            'select' => ['ID', 'XML_ID', 'IBLOCK_ID'],
-//            'filter' => ['=XML_ID' => $this->externalId->get()]
-//        ])->fetch();
     }
 
     public function addField($name, $value)
@@ -211,24 +212,6 @@ abstract class AbstractSaver implements Saver
                 'ACTIVE' => $element['ACTIVE'],
             ];
         }
-
-//        $cacheKey = '';
-//        $result = [];
-//        if (!empty($xmlIdExternals)) {
-//            $rsElements = \Bitrix\Iblock\ElementTable::getList([
-//                'select' => ['ID', 'XML_ID', 'ACTIVE'],
-//                'filter' => ['XML_ID' => array_keys($xmlIdExternals)]
-//                ]
-//            );
-//            while ($item = $rsElements->fetch()) {
-//                $result[$item['XML_ID']] = [
-//                    'ID' => $item['ID'],
-//                    'ACTIVE' => $item['ACTIVE'],
-//                    'PROPERTY_CODE' => $xmlIdExternals[$item['XML_ID']]['PROPERTY_CODE'],
-//                    'XML_ID' => $item['XML_ID']
-//                ];
-//            }
-//        }
 
         return $result;
     }

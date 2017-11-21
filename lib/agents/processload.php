@@ -7,39 +7,32 @@
 
 namespace Fgsoft\Nmarket\Agents;
 
-use Bitrix\Main\Diag\Debug;
+use Bitrix\Main\Event;
 use Fgsoft\Nmarket\Facade\FacadeProcessing;
+use Fgsoft\Nmarket\Log\Log;
+use Fgsoft\Nmarket\Log\Logger;
 
 class ProcessLoad
 {
     public function start()
     {
-        if (false == ($pathTo = self::downloadFile())) {
-            \CAdminNotify::Add([
-                'MESSAGE' => 'Error!',
-                'TYPE' => \CAdminNotify::TYPE_Error
-            ]);
-            return false;
+        if (false !== ($pathTo = self::downloadFile())) {
+            try {
+                $xmlReader = new \XMLReader();
+                $xmlReader->open($pathTo);
+                FacadeProcessing::process($xmlReader, true, Logger::getInstance());
+
+                $xmlReader = new \XMLReader();
+                $xmlReader->open($pathTo);
+                FacadeProcessing::process($xmlReader, false, Logger::getInstance());
+            } catch (\Exception $e) {
+                Logger::getInstance()->add(new Log('FATAL', $e->getMessage()));
+            }
+
+            Logger::getInstance()->add(new Log('SUCESS', 'Все стадии выгрузки позади'));
         }
 
-        Debug::dumpToFile(['loadFile' => $pathTo], 'upload/error.txt');
-        try {
-        $xmlReader = new \XMLReader();
-        $xmlReader->open($pathTo);
-            FacadeProcessing::process($xmlReader, true);
-        $xmlReader->open($pathTo);
-            FacadeProcessing::process($xmlReader, false);
-        } catch (\Exception $e) {
-            \CAdminNotify::Add([
-                'MESSAGE' => $e->getMessage(),
-                'TYPE' => \CAdminNotify::TYPE_ERROR
-            ]);
-        }
-
-        \CAdminNotify::Add([
-            'MESSAGE' => 'Ok!',
-            'TYPE' => \CAdminNotify::TYPE_NORMAL
-        ]);
+        self::sendEvent();
 
         return 'Fgsoft\Nmarket\Agents\ProcessLoad::start();';
     }
@@ -56,10 +49,7 @@ class ProcessLoad
 
 
         if ($path == null) {
-            \CAdminNotify::Add([
-                'MESSAGE' => 'Ошибка! Не задан URL к файлу выгрузки NMarket!',
-                'TYPE' => \CAdminNotify::TYPE_ERROR
-            ]);
+            Logger::getInstance()->add(new Log('ERROR_OPTIONS', 'Не задан путь к файлу выгрузки'));
 
             return false;
         }
@@ -75,12 +65,8 @@ class ProcessLoad
             $io->CreateDirectory($pathTo);
         }
 
-        if (!copy($arFile['tmp_name'], $filePath)) {
-            \CAdminNotify::Add([
-                'MESSAGE' => 'Не удалось скопировать файл выгрузки( ' . $arFile['tmp_name'] . ') по пути ' . $filePath,
-                'TYPE' => \CAdminNotify::TYPE_ERROR
-            ]);
-
+        if (!move_uploaded_file($arFile['tmp_name'], $filePath) && !copy($arFile['tmp_name'], $filePath)) {
+            Logger::getInstance()->add(new Log('ERROR_DOWNLOAD', 'Не удалось сохранить файл выгрукзи'));
             return false;
         }
 
@@ -89,5 +75,11 @@ class ProcessLoad
         }
 
         return false;
+    }
+
+    public static function sendEvent()
+    {
+        $event = new Event('fgsoft.nmarket', 'onAfterProcess', ['logger' => Logger::getInstance()]);
+        $event->send();
     }
 }

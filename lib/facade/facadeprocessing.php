@@ -13,6 +13,8 @@ use Bitrix\Main\Diag\Debug;
 use Fgsoft\Nmarket\Cache\Cache;
 use Fgsoft\Nmarket\Cache\Memcache;
 use Fgsoft\Nmarket\Fabric\FabricExternalId;
+use Fgsoft\Nmarket\Log\Log;
+use Fgsoft\Nmarket\Log\Logger;
 use Fgsoft\Nmarket\Saver\BuildingSaver;
 use Fgsoft\Nmarket\Saver\ComplexSaver;
 use Fgsoft\Nmarket\Saver\DictionarySaver;
@@ -23,12 +25,27 @@ use Fgsoft\Nmarket\Saver\PictureSave;
 
 class FacadeProcessing
 {
-    public static function process(\XMLReader $xmlReader, $downloadPictures = false)
+    /**
+     * @var Logger
+     */
+    public static $logger;
+
+    /**
+     * Запуск процесса выгрузки
+     *
+     * Logger передается инстанцированый Logger::getInstance();
+     * @param \XMLReader $xmlReader
+     * @param bool $downloadPictures
+     * @param Logger $logger
+     */
+    public static function process(\XMLReader $xmlReader, $downloadPictures = false, Logger $logger)
     {
         $fields = [];
         $currentInternalId = 0;
         $currentNode = '';
         $index = 0;
+
+        self::$logger = $logger;
 
         Loader::includeModule('iblock');
 
@@ -68,6 +85,7 @@ class FacadeProcessing
                     self::save($fields, $memcache);
                 }
 
+                Debug::dumpToFile($index, 'INDEX', 'upload/progress.txt');
                 unset($fields);
                 $fields = [];
 
@@ -129,6 +147,7 @@ class FacadeProcessing
         //Район
         $dictionarySaver = new DictionarySaver($nodeOffer, FabricExternalId::getForSubLocalityName($nodeOffer), $IBLOCK_TOWNAREA, 'sub-locality-name', $cache);
         $dictionarySaver->save();
+
         $districtSaver = new DictionarySaver($nodeOffer, FabricExternalId::getForDistrict($nodeOffer), $IBLOCK_TOWNAREA, 'district', $cache);
         $districtSaver->save();
 
@@ -188,12 +207,13 @@ class FacadeProcessing
             $path = Application::getDocumentRoot() . '/upload/' . \COption::GetOptionString('fgsoft.nmarket', 'feedUploadPath', 'nmarket');
 
             try {
+                if (null == $node->getImage()) {
+                    return;
+                }
                 $pictureSaver = new PictureSave($node, FabricExternalId::getForFlat($node), $path);
                 $pictureSaver->save();
             } catch (\Exception $e) {
-                Debug::dumpToFile([
-                    'FATAL' => $e->getMessage()
-                ], 'NMARKET', 'upload/errors.txt');
+                self::$logger->add(new Log('IMAGE_SAVE', 'Не сохранилось изображения offer = ' . $node->getInternalID()));
             }
 
         }
