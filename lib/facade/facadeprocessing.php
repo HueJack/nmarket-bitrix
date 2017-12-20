@@ -14,6 +14,7 @@ use Bitrix\Main\Diag\Debug;
 use Fgsoft\Nmarket\Cache\Cache;
 use Fgsoft\Nmarket\Cache\Memcache;
 use Fgsoft\Nmarket\Fabric\FabricExternalId;
+use Fgsoft\Nmarket\Fabric\FabricSaver;
 use Fgsoft\Nmarket\Log\Log;
 use Fgsoft\Nmarket\Log\Logger;
 use Fgsoft\Nmarket\Saver\BuildingSaver;
@@ -42,16 +43,23 @@ class FacadeProcessing
      */
     public static function process(\XMLReader $xmlReader, $downloadPictures = false, Logger $logger)
     {
+        global $DB;
+
         $fields = [];
         $currentInternalId = 0;
         $currentNode = '';
-        $index = 0;
+        $countOffers = 0;
 
         self::$logger = $logger;
 
         Loader::includeModule('iblock');
 
+
+
         if (!$downloadPictures) {
+            ///После загрузки изображений запускаем транзацию
+            $DB->StartTransaction();
+
             self::beforeProcess();
         }
 
@@ -90,14 +98,20 @@ class FacadeProcessing
                 unset($fields);
                 $fields = [];
 
-                $index++;
+                $countOffers++;
             }
         }
 
         $xmlReader->close();
 
         if (!$downloadPictures) {
-            self::afterProcess();
+            if ($countOffers > 0) {
+                $DB->Commit();
+                self::afterProcess();
+            } else {
+                self::$logger->add(new Log('ERROR', 'Не было добавлено ни одного элемента, все изменения возвращены назад'));
+                $DB->Rollback();
+            }
         }
     }
 
@@ -119,88 +133,39 @@ class FacadeProcessing
 
     protected static function save($fields, $cache)
     {
-        //TODO: REFACTORING CONST NUMBER IBLOCK
-        $IBLOCK_COMPLEX = 1;
-        $IBLOCK_TOWNAREA = 2;
-        $IBLOCK_METRO = 5;
-        $IBLOCK_BUILDING = 6;
-        $IBLOCK_BUILDING_TYPE = 9;
-        $IBLOCK_RENOVATION = 10;
-        $IBLOCK_FLOORS = 12;
-        $IBLOCK_FLAT = 13;
-        $IBLOCK_ROOMS = 14;
-        $IBLOCK_LOCALITY = 17;
-        $IBLOCK_BUILDING_PHASE = 24;
-        $IBLOCK_REGION = 25;
-        $IBLOCK_BATHROOM_UNIT = 27;
-        $IBLOCK_BALCONY = 28;
-        $IBLOCK_BUILDING_STATE = 29;
 
         $nodeOffer = new \Fgsoft\Nmarket\Node\OfferNode($fields);
 
-        //TODO: REFACTORING ADD FABRIC SAVER
-        //Сначала заполняем справочники
-        $localitySaver = new DictionarySaver($nodeOffer, FabricExternalId::getForLocalityName($nodeOffer), $IBLOCK_LOCALITY, 'locality-name', $cache);
-        $localitySaver->save();
+        //Очередь сохранения элементов
+        $saveQueue = [
+            //Справочники
+            'locality-name',
+            'region',
+            'sub-locality-name',
+            'district',
+            'renovation',
+            'rooms',
+            'building-type',
+            'building-phase',
+            'building-state',
+            'balcony',
+            'bathroom-unit',
+            'metro',
+            //Комплекс и его составляющие
+            'nmarket-complex-id',
+            'nmarket-building-id',
+            'floor',
+            'flat'
+        ];
 
-        $regionSaver = new DictionarySaver($nodeOffer, FabricExternalId::getForRegion($nodeOffer), $IBLOCK_REGION, 'region', $cache);
-        $regionSaver->save();
-
-        //Район
-        $dictionarySaver = new DictionarySaver($nodeOffer, FabricExternalId::getForSubLocalityName($nodeOffer), $IBLOCK_TOWNAREA, 'sub-locality-name', $cache);
-        $dictionarySaver->save();
-
-        $districtSaver = new DictionarySaver($nodeOffer, FabricExternalId::getForDistrict($nodeOffer), $IBLOCK_TOWNAREA, 'district', $cache);
-        $districtSaver->save();
-
-        //Ремонт
-        $renovationSaver = new DictionarySaver($nodeOffer, FabricExternalId::getForRenovation($nodeOffer), $IBLOCK_RENOVATION, 'renovation', $cache);
-        $renovationSaver->save();
-
-        //Возможные количества комнат
-        $roomsSaver = new DictionarySaver($nodeOffer, FabricExternalId::getForRooms($nodeOffer), $IBLOCK_ROOMS, 'rooms', $cache);
-        $roomsSaver->save();
-
-        //Тип дома
-        $buildingTypeSaver = new DictionarySaver($nodeOffer, FabricExternalId::getForBuildingType($nodeOffer), $IBLOCK_BUILDING_TYPE, 'building-type', $cache);
-        $buildingTypeSaver->save();
-
-        //Фазы строительства
-        $buildingPhaseSaver = new DictionarySaver($nodeOffer, FabricExternalId::getForBuildingPhase($nodeOffer), $IBLOCK_BUILDING_PHASE, 'building-phase', $cache);
-        $buildingPhaseSaver->save();
-
-        //Стадия строительства дома
-        $buildingStateSaver = new DictionarySaver($nodeOffer, FabricExternalId::getForBuildingState($nodeOffer), $IBLOCK_BUILDING_STATE, 'building-state', $cache);
-        $buildingStateSaver->save();
-
-        //Тип балкона
-        $balconySaver = new DictionarySaver($nodeOffer, FabricExternalId::getForBalcony($nodeOffer), $IBLOCK_BALCONY, 'balcony', $cache);
-        $balconySaver->save();
-
-        //Тип балкона
-        $bathroomUnitSaver = new DictionarySaver($nodeOffer, FabricExternalId::getForBathroomUnit($nodeOffer), $IBLOCK_BATHROOM_UNIT, 'bathroom-unit', $cache);
-        $bathroomUnitSaver->save();
-
-        //Метро
-        $metroSaver = new DictionarySaver($nodeOffer, FabricExternalId::getForMetro($nodeOffer), $IBLOCK_METRO, 'metro', $cache);
-        $metroSaver->save();
-
-        //Сохранение комплекса
-        $complexSaver = new ComplexSaver($nodeOffer, FabricExternalId::getForComplex($nodeOffer), $IBLOCK_COMPLEX, 'nmarket-complex-id', $cache);
-        $complexSaver->save();
-
-
-        //Сохранение корпуса
-        $buildingSaver = new BuildingSaver($nodeOffer, FabricExternalId::getForBuilding($nodeOffer), $IBLOCK_BUILDING, 'nmarket-building-id', $cache);
-        $buildingSaver->save();
-
-        //Создаем этажи
-         $floorSaver = new FloorSaver($nodeOffer, FabricExternalId::getForFloor($nodeOffer), $IBLOCK_FLOORS, 'floor', $cache);
-         $floorSaver->save();
-
-         //Сохранение кварир
-        $flatSaver = new FlatSaver($nodeOffer, FabricExternalId::getForFlat($nodeOffer), $IBLOCK_FLAT, $cache);
-        $flatSaver->save();
+        try {
+            foreach ($saveQueue as $index => $nodeKey) {
+                $saver = FabricSaver::create($nodeOffer, $nodeKey, $cache);
+                $saver->save();
+            }
+        } catch (\Exception $e) {
+            Logger::getInstance()->add(new Log('EXCEPTION_ERROR', $e->getMessage()));
+        }
     }
 
     protected static function downloadPicture($fields, Cache $cache)

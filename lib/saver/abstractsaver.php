@@ -67,9 +67,19 @@ abstract class AbstractSaver implements Saver
      */
     public function __construct(Node $node, ExternalId $externalId, $iblockId, $nodeKey = '', $cache = null)
     {
+        if (empty($iblockId)) {
+            throw new \InvalidArgumentException('Параметр iblockId пустой! ' . print_r(['nodeKey' => $nodeKey], true));
+        }
+
+        if (empty($nodeKey)) {
+
+        }
         $this->node = $node;
         $this->nodeKey = $nodeKey;
         $this->externalId = $externalId;
+
+
+
         $this->iblockId = $iblockId;
 
         if ($cache instanceof Cache) {

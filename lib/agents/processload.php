@@ -16,14 +16,19 @@ class ProcessLoad
 {
     public function start()
     {
-        //Удаляем дату следующей проверки DATE_CHECK, иначе через 10 минут запустится 2я выборка
+        //Обновляем дату следующей проверки DATE_CHECK, иначе через 10 минут запустится 2я выборка
         static::updateDateCheck('fgsoft.nmarket', 'Fgsoft\Nmarket\Agents\ProcessLoad::start();');
 
         if (false !== ($pathTo = self::downloadFile())) {
             try {
                 $xmlReader = new \XMLReader();
-                $xmlReader->open($pathTo);
+
+                if (!$xmlReader->open($pathTo)) {
+                    throw new \Exception('Ошибка! Невозможно открыть файл');
+                }
+
                 FacadeProcessing::process($xmlReader, true, Logger::getInstance());
+
 
                 $xmlReader = new \XMLReader();
                 $xmlReader->open($pathTo);
@@ -56,7 +61,6 @@ class ProcessLoad
 
             \CAllAgent::Update($agent['ID'], ['DATE_CHECK' => $date->format('d.m.Y H:i:s')]);
         }
-
     }
 
     public static function downloadFile()

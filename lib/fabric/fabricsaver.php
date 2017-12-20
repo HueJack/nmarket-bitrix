@@ -67,11 +67,10 @@ class FabricSaver
                 return new Saver\FloorSaver($nodeOffer, FabricExternalId::getForFloor($nodeOffer), ModuleIblockList::getFloorsIblockId(), $nodeKey, $cache);
                 break;
             case 'flat':
-                return new Saver\FlatSaver($nodeOffer, FabricExternalId::getForFlat($nodeOffer), ModuleIblockList::getFlatIblockId(), $cache);
+                return new Saver\FlatSaver($nodeOffer, FabricExternalId::getForFlat($nodeOffer), ModuleIblockList::getFlatIblockId(), '', $cache);
                 break;
             default:
                 throw new \InvalidArgumentException('Ошибка! Переданный ключ не соответствует ни одному из вариантов');
-
         }
     }
 }
