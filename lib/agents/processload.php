@@ -16,6 +16,9 @@ class ProcessLoad
 {
     public function start()
     {
+        //Удаляем дату следующей проверки DATE_CHECK, иначе через 10 минут запустится 2я выборка
+        static::updateDateCheck('fgsoft.nmarket', 'Fgsoft\Nmarket\Agents\ProcessLoad::start();');
+
         if (false !== ($pathTo = self::downloadFile())) {
             try {
                 $xmlReader = new \XMLReader();
@@ -35,6 +38,25 @@ class ProcessLoad
         self::sendEvent();
 
         return 'Fgsoft\Nmarket\Agents\ProcessLoad::start();';
+    }
+
+    protected static function updateDateCheck($moduleId, $name)
+    {
+        $agent = \CAllAgent::GetList(
+            [],
+            [
+                'MODULE_ID' => $moduleId,
+                '=NAME' => $name
+            ]
+        )->Fetch();
+
+        if (!empty($agent['ID'])) {
+            $date = new \DateTime('now');
+            $date->modify('+1 day');
+
+            \CAllAgent::Update($agent['ID'], ['DATE_CHECK' => $date->format('d.m.Y H:i:s')]);
+        }
+
     }
 
     public static function downloadFile()

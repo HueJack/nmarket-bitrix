@@ -67,6 +67,9 @@ class FlatSaver extends AbstractSaver
 
     public function isNeedSave()
     {
+        if ($this->node->getLivingSpace() == 0) {
+            return false;
+        }
         //Если корпус существует и активен, то грузим квартиры
         $result = [];
         $cacheKey = 'ACTIVE_' . FabricExternalId::getForBuilding($this->node)->get();

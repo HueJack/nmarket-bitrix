@@ -54,6 +54,9 @@ class FabricExternalId
             case 'bathroom-unit':
                 return  new DictionaryExternalId($node, 'bathroom_unit', 'bathroom_unit');
                 break;
+            case 'metro':
+                return  new DictionaryExternalId($node, 'metro', 'metro');
+                break;
             case 'nmarket-complex-id':
                 return new RealExternalId($node, 'nmarket-complex-id');
                 break;
@@ -216,5 +219,15 @@ class FabricExternalId
     public static function getForBathroomUnit(Node $node)
     {
         return static::get($node, 'bathroom-unit');
+    }
+
+    /**
+     * Станция метро
+     * @param Node $node
+     * @return BuildingExternalId|FlatExternalId|FloorExternalId
+     */
+    public static function getForMetro(Node $node)
+    {
+        return static::get($node, 'metro');
     }
 }

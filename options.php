@@ -24,6 +24,18 @@ while ($arItem = $rsIblocks->fetch()) {
 }
 $request = \Bitrix\Main\HttpApplication::getInstance()->getContext()->getRequest();
 
+$arDatasetOption = [];
+$arNmarketIblocksNeeds = \Fgsoft\Nmarket\Options\ModuleIblockList::getList();
+
+foreach ($arNmarketIblocksNeeds as $key => $arItem) {
+    $arDatasetOption[] = [
+        $key,
+        $arItem['TITLE'],
+        '',
+        ['selectbox', $arIblocks]
+    ];
+}
+
 $arTabs = [
     [
         'DIV' => 'settings',
@@ -49,63 +61,8 @@ $arTabs = [
         'DIV' => 'dataset',
         'TAB' => Loc::getMessage('FGSOFT_NMARKET_DATASET_SETTINGS'),
         'TITLE' => Loc::getMessage('FGSOFT_NMARKET_DATASET_SETTINGS_TITLE'),
-        'OPTIONS' => [
-            [
-                'sub-locality-name', //Район
-                Loc::getMessage('FGSOFT_NMARKET_TOWNAREA'),
-                '',
-                ['selectbox', $arIblocks]
-            ],
-            [
-                'renovation', //Ремонт
-                Loc::getMessage('FGSOFT_NMARKET_FACING'),
-                '',
-                ['selectbox', $arIblocks]
-            ],
-            [
-                'rooms', //Возможные количества комнат
-                Loc::getMessage('FGSOFT_NMARKET_ROOMS'),
-                '',
-                ['selectbox', $arIblocks]
-            ],
-            [
-                'building-type', //Тип дома
-                Loc::getMessage('FGSOFT_NMARKET_BUILDING_TYPE'),
-                '',
-                ['selectbox', $arIblocks]
-            ],
-            [
-                'building-phase', //Очередь строительства
-                Loc::getMessage('FGSOFT_NMARKET_BUILDING_PHASE'),
-                '',
-                ['selectbox', $arIblocks]
-            ],
-            [
-                'complex', //ЖК
-                Loc::getMessage('FGSOFT_NMARKET_COMPLEX'),
-                '',
-                ['selectbox', $arIblocks]
-            ],
-            [
-                'building',
-                Loc::getMessage('FGSOFT_NMARKET_BUILDING'),
-                '',
-                ['selectbox', $arIblocks]
-            ],
-            [
-                'floor',
-                Loc::getMessage('FGSOFT_NMARKET_FLOORS'),
-                '',
-                ['selectbox', $arIblocks]
-            ],
-            [
-                'flat',
-                Loc::getMessage('FGSOFT_NMARKET_APARTMENT'),
-                '',
-                ['selectbox', $arIblocks]
-            ]
+        'OPTIONS' => $arDatasetOption
 
-        ]
     ],
 ];
 
@@ -114,7 +71,6 @@ if (check_bitrix_sessid() && $request->get('Update')) {
     //Сохраняем справочники в Options
     //и добавляем их в таблицу
     foreach ($request->getPostList() as $nodeName => $IBLOCK_ID) {
-
         foreach ($arTabs as $arTab) {
             if (!empty($arTab['OPTIONS'])) {
                 __AdmSettingsSaveOptions($module_id, $arTab['OPTIONS']);

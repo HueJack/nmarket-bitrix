@@ -9,6 +9,7 @@
 namespace Fgsoft\Nmarket\Facade;
 
 use Bitrix\Main\Application;
+use Bitrix\Main\DB\Connection;
 use Bitrix\Main\Diag\Debug;
 use Fgsoft\Nmarket\Cache\Cache;
 use Fgsoft\Nmarket\Cache\Memcache;
@@ -22,6 +23,7 @@ use Fgsoft\Nmarket\Saver\FlatSaver;
 use Fgsoft\Nmarket\Saver\FloorSaver;
 use \Bitrix\Main\Loader;
 use Fgsoft\Nmarket\Saver\PictureSave;
+use Fgsoft\Nmarket\Options\ModuleIblockList;
 
 class FacadeProcessing
 {
@@ -69,7 +71,7 @@ class FacadeProcessing
                 $currentNode = $xmlReader->localName;
                 $fields[$currentInternalId]['fields'][$xmlReader->localName] = [];
 
-                if (in_array($xmlReader->localName, ['price', 'area', 'living-space', 'kitchen-space'])) {
+                if (in_array($xmlReader->localName, ['price', 'area', 'living-space', 'kitchen-space', 'metro'])) {
                     $fields[$currentInternalId]['fields'][$xmlReader->localName] = self::parseSubValue($xmlReader);
                 }
             }
@@ -85,7 +87,6 @@ class FacadeProcessing
                     self::save($fields, $memcache);
                 }
 
-                Debug::dumpToFile($index, 'INDEX', 'upload/progress.txt');
                 unset($fields);
                 $fields = [];
 
@@ -121,6 +122,7 @@ class FacadeProcessing
         //TODO: REFACTORING CONST NUMBER IBLOCK
         $IBLOCK_COMPLEX = 1;
         $IBLOCK_TOWNAREA = 2;
+        $IBLOCK_METRO = 5;
         $IBLOCK_BUILDING = 6;
         $IBLOCK_BUILDING_TYPE = 9;
         $IBLOCK_RENOVATION = 10;
@@ -179,6 +181,10 @@ class FacadeProcessing
         $bathroomUnitSaver = new DictionarySaver($nodeOffer, FabricExternalId::getForBathroomUnit($nodeOffer), $IBLOCK_BATHROOM_UNIT, 'bathroom-unit', $cache);
         $bathroomUnitSaver->save();
 
+        //Метро
+        $metroSaver = new DictionarySaver($nodeOffer, FabricExternalId::getForMetro($nodeOffer), $IBLOCK_METRO, 'metro', $cache);
+        $metroSaver->save();
+
         //Сохранение комплекса
         $complexSaver = new ComplexSaver($nodeOffer, FabricExternalId::getForComplex($nodeOffer), $IBLOCK_COMPLEX, 'nmarket-complex-id', $cache);
         $complexSaver->save();
@@ -228,31 +234,59 @@ class FacadeProcessing
     protected static function afterProcess()
     {
         ///Деактивируем элементы, которые не были обновлены в выгрузке
-//        $rs = \CIBlockElement::GetList(
-//            [],
-//            [
-//                //TODO: REFACTORING MAGIC NUMBERS
-//                'IBLOCK_ID' => [13],
-//                [
-//                    'LOGIC' => 'OR',
-//                    ['=PROPERTY_UPDATED_NOW' => false],
-//                    ['=PROPERTY_UPDATED_NOW' => 'N']
-//                ]
-//            ],
-//            false,
-//            false,
-//            ['ID', 'IBLOCK_ID', 'PROPERTY_UPDATED_NOW']
-//        );
-//
-//        while ($arItem = $rs->Fetch()) {
-//            $ciElement = new \CIBlockElement();
-//            $ciElement->Update(
-//                $arItem['ID'],
-//                [
-//                    'ACTIVE' => 'N'
-//                ]
-//            );
-//        }
+        $rs = \CIBlockElement::GetList(
+            [],
+            [
+                //TODO: REFACTORING MAGIC NUMBERS
+                'ACTIVE' => 'Y',
+                'IBLOCK_ID' => [13],
+                [
+                    'LOGIC' => 'OR',
+                    ['=PROPERTY_UPDATED_NOW' => false],
+                    ['=PROPERTY_UPDATED_NOW' => 'N']
+                ]
+            ],
+            false,
+            false,
+            ['ID', 'IBLOCK_ID', 'PROPERTY_UPDATED_NOW']
+        );
+
+        while ($arItem = $rs->Fetch()) {
+            $ciElement = new \CIBlockElement();
+            $ciElement->Update(
+                $arItem['ID'],
+                [
+                    'ACTIVE' => 'N'
+                ]
+            );
+        }
+
+        ///Активируем элементы, которые были обновлены в текущей выгрузке
+        $rs = \CIBlockElement::GetList(
+            [],
+            [
+                //TODO: REFACTORING MAGIC NUMBERS
+                'ACTIVE' => 'N',
+                'IBLOCK_ID' => [13],
+                [
+                    'LOGIC' => 'OR',
+                    ['=PROPERTY_UPDATED_NOW' => 'Y']
+                ]
+            ],
+            false,
+            false,
+            ['ID', 'IBLOCK_ID', 'PROPERTY_UPDATED_NOW']
+        );
+
+        while ($arItem = $rs->Fetch()) {
+            $ciElement = new \CIBlockElement();
+            $ciElement->Update(
+                $arItem['ID'],
+                [
+                    'ACTIVE' => 'Y'
+                ]
+            );
+        }
 
         //Заполнение параметрых необходимых для сортировки
         $arDistricts = \Bitrix\Iblock\ElementTable::getList(['select' => ['ID'], 'filter' => ['IBLOCK_ID' => DISTRICT_IBLOCK_ID, 'ACTIVE' => 'Y']])->fetchAll();
@@ -305,7 +339,7 @@ class FacadeProcessing
 
         //1. Получаем данные по имеющимся количествам комнат
         $arFlatNumbers = [];
-        $rsFlatNumbers = \Bitrix\Iblock\ElementTable::getList(['select' => ['ID'], 'filter' => ['=IBLOCK_ID' => $ROOM_NUMBER_IBLOCK_ID]]);
+        $rsFlatNumbers = \Bitrix\Iblock\ElementTable::getList(['select' => ['ID'], 'filter' => ['=IBLOCK_ID' => $ROOM_NUMBER_IBLOCK_ID, 'ACTIVE' => 'Y']]);
         while ($arItem = $rsFlatNumbers->fetch()) {
             $arFlatNumbers[] = $arItem['ID'];
         }
@@ -353,16 +387,19 @@ class FacadeProcessing
 
         }
 
+        $connection = \Bitrix\Main\Application::getConnection();
+        $connection->query('DELETE FROM ' . \Fgsoft\Nmarket\Model\FlatParamTable::getTableName());
+
         foreach ($arResult as $intDistrictID => $arItem) {
             foreach ($arItem as $intRoomNumberID => $arData) {
-                if ($arFlatParam = \Fgsoft\Nmarket\Model\FlatParamTable::getList(['select' => ['ID'], 'filter' => ['UF_DISTRICT_ID' => $intDistrictID, 'UF_ROOM_NUMBERS' => $intRoomNumberID]])->fetch()) {
-                    \Fgsoft\Nmarket\Model\FlatParamTable::update(
-                        $arFlatParam['ID'],
-                        $arData
-                    );
-                } else {
+//                if ($arFlatParam = \Fgsoft\Nmarket\Model\FlatParamTable::getList(['select' => ['ID'], 'filter' => ['UF_DISTRICT_ID' => $intDistrictID, 'UF_ROOM_NUMBERS' => $intRoomNumberID]])->fetch()) {
+//                    \Fgsoft\Nmarket\Model\FlatParamTable::update(
+//                        $arFlatParam['ID'],
+//                        $arData
+//                    );
+//                } else {
                     \Fgsoft\Nmarket\Model\FlatParamTable::add($arData);
-                }
+//                }
             }
         }
     }

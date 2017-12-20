@@ -29,6 +29,7 @@ class ComplexSaver extends AbstractSaver
             'TOWNAREA' => FabricExternalId::getForSubLocalityName($this->node),
             'DISTRICT' => FabricExternalId::getForDistrict($this->node),
             'LOCALITY_NAME' => FabricExternalId::getForLocalityName($this->node),
+            'NEARMETRO' => FabricExternalId::getForMetro($this->node),
         ]);
 
         if (false !== $propertiesData && !empty($propertiesData)) {
